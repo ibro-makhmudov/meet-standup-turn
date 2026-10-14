@@ -220,7 +220,7 @@
       if (chrome.runtime.lastError) return;
       if (R.newerVersion(latest, current)) { ui.update = latest; ui.lastSig = ''; tick(); }
     });
-  } catch {} // demo page: no chrome.runtime
+  } catch { ui.update = globalThis.STANDUP_DEMO_UPDATE || null; } // demo page: no chrome.runtime
 
   async function tick() {
     const c = code();
@@ -292,7 +292,7 @@
     let row = '';
     if (present) {
       const menu = ui.menu ? `<div class="menu" role="menu">
-          ${present.map((n) => `<div class="mi" role="menuitem" data-a="pick" data-n="${esc(n)}"><span class="ck">${n === starter ? svg(ICON.check) : ''}</span>${esc(n)}</div>`).join('')}
+          ${present.map((n) => `<div class="mi${n === starter ? ' sel' : ''}" role="menuitem" data-a="pick" data-n="${esc(n)}"><span class="ck">${n === starter ? svg(ICON.check) : ''}</span>${esc(n)}</div>`).join('')}
           ${meeting.last ? `<div class="msep"></div><div class="mi muted" role="menuitem" data-a="clear"><span class="ck"></span>Don’t track who starts</div>` : ''}
         </div>` : '';
       row = `<div class="sep"></div>
@@ -308,6 +308,8 @@
     wrap.innerHTML = `<div class="card">
         <div class="top">${top}<button class="icon-btn" data-a="min" title="Minimize">${svg(ICON.min)}</button></div>
         ${row}${upd}</div>`;
+    const sel = root.querySelector('.menu .sel');
+    if (sel) sel.parentElement.scrollTop = sel.offsetTop - 8;
   }
 
   // ---------- events ----------

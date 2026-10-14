@@ -37,7 +37,7 @@
     if (params.has('reset')) localStorage.clear();
     if (params.get('starter')) localStorage.setItem('meet:demo', JSON.stringify({ known: [], last: { date: params.get('date'), starter: params.get('starter') } }));
     if (params.has('open')) panel.classList.add('open');
-    if (params.has('clean')) document.head.insertAdjacentHTML('beforeend', '<style>.ctl, [role=listitem] button { display: none !important; }</style>');
+    if (params.has('clean')) document.head.insertAdjacentHTML('beforeend', '<style>.ctl, [role=listitem] button { display: none !important; } .toolbar { opacity: 0; }</style>');
     // like Meet: the list is rendered on first open (?lazy=1) and stays in the page when closed
     let rendered = !params.has('lazy');
     pbtn.onclick = () => setTimeout(() => { chat.classList.remove('open'); panel.classList.toggle('open'); if (!rendered) { rendered = true; draw(); } }, 200);
@@ -63,7 +63,13 @@
     join.onclick = () => { if (nm.value) { people.push(nm.value); nm.value = ''; draw(); } };
     draw();
   </script>
-  <script>if (params.get('date')) globalThis.STANDUP_TODAY = params.get('date');</script>
+  <script>
+    if (params.get('date')) globalThis.STANDUP_TODAY = params.get('date');
+    // screenshot helpers: ?update=1.2.0 shows the update line, ?min=1 starts minimized, ?menu=1 opens the menu
+    if (params.get('update')) globalThis.STANDUP_DEMO_UPDATE = params.get('update');
+    localStorage.setItem('standup-min', params.has('min') ? '1' : '0');
+    if (params.has('menu')) setTimeout(() => document.getElementById('standup-turn-root').shadowRoot.querySelector('[data-a=menu]').click(), 2500);
+  </script>
   <script src="../rotation.js"></script>
   <script src="../content.js"></script>
 </body>
