@@ -1,0 +1,57 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Fake Meet call</title>
+  <style>
+    body { margin: 0; background: #202124; color: #e8eaed; font: 14px Roboto, Arial, sans-serif; height: 100vh; }
+    .people { position: absolute; right: 16px; top: 16px; width: 330px; background: #202124; border: 1px solid #3c4043; border-radius: 16px; padding: 12px; display: none; }
+    .people.open { display: block; }
+    .sect { border: 1px solid #5f6368; border-radius: 12px; }
+    .sect .h { padding: 12px 16px; border-bottom: 1px solid #5f6368; display: flex; justify-content: space-between; }
+    [role=listitem] { padding: 8px 12px 8px 24px; display: flex; align-items: center; gap: 12px; }
+    .av { width: 32px; height: 32px; border-radius: 50%; background: #5f6368; display: grid; place-items: center; }
+    .nm { flex: 1; }
+    [role=listitem] button { background: none; border: 0; color: #9aa0a6; cursor: pointer; }
+    .ctl { margin-top: 10px; display: flex; gap: 6px; }
+    .ctl input { flex: 1; }
+    .toolbar { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); }
+    .toolbar button { background: #3c4043; color: #e8eaed; border: 0; border-radius: 20px; padding: 10px 16px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <!-- Mimics Meet's People panel: listitems with aria-label = display name, "You" first, then alphabetical. -->
+  <div class="people" id="panel">
+    <div class="sect">
+      <div class="h"><span>Contributors</span><span id="cnt"></span></div>
+      <div role="list" id="list"></div>
+    </div>
+    <div class="ctl"><input id="nm" placeholder="name"><button id="join">join</button></div>
+  </div>
+  <div class="toolbar"><button aria-label="People" id="pbtn">People</button></div>
+  <script>
+    const params = new URLSearchParams(location.search);
+    globalThis.STANDUP_DEMO = true;
+    if (params.has('reset')) localStorage.clear();
+    if (params.get('starter')) localStorage.setItem('meet:demo', JSON.stringify({ known: [], last: { date: params.get('date'), starter: params.get('starter') } }));
+    if (params.has('open')) panel.classList.add('open');
+    if (params.has('clean')) document.head.insertAdjacentHTML('beforeend', '<style>.ctl, [role=listitem] button { display: none !important; }</style>');
+    pbtn.onclick = () => setTimeout(() => panel.classList.toggle('open'), 200);
+    const self = params.get('self') || 'Imre Fekete';
+    let people = (params.get('people') || 'Ádám Kovács,Anna Tóth,Balázs Nagy,Dávid Szabó,David Varga,Krisztina Hegedűs,Lili Simon,Márk Molnár,Nóra Pap,Péter Lakatos,Zoltán Fehér').split(',');
+    // Meet-like re-render: rebuilds all rows whenever someone joins or leaves
+    const draw = () => {
+      const sorted = [...people].sort((a, b) => a.localeCompare(b, 'en'));
+      list.innerHTML = [`<div role="listitem" aria-label="${self}"><span class="av">I</span><span class="nm">${self} (You)</span></div>`]
+        .concat(sorted.map((p) => `<div role="listitem" aria-label="${p}"><span class="av">${p[0]}</span><span class="nm">${p}</span><button data-p="${p}">leave</button></div>`)).join('');
+      cnt.textContent = sorted.length + 1;
+    };
+    list.onclick = (e) => { if (e.target.dataset.p) { people = people.filter((p) => p !== e.target.dataset.p); draw(); } };
+    join.onclick = () => { if (nm.value) { people.push(nm.value); nm.value = ''; draw(); } };
+    draw();
+  </script>
+  <script>if (params.get('date')) globalThis.STANDUP_TODAY = params.get('date');</script>
+  <script src="../rotation.js"></script>
+  <script src="../content.js"></script>
+</body>
+</html>
