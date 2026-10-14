@@ -25,7 +25,8 @@ With git (recommended, makes updates one command):
 git clone https://github.com/ibro-makhmudov/meet-standup-turn.git ~/meet-standup-turn
 ```
 
-Without git: on this page click the green **Code** button → **Download ZIP**, then unzip it somewhere you'll keep it.
+Without git (no account needed): download **[meet-standup-turn-main.zip](https://github.com/ibro-makhmudov/meet-standup-turn/archive/refs/heads/main.zip)**
+and unzip it somewhere you'll keep it (not in Downloads if you clean that folder). This link always gives the latest version.
 
 **2. Load it into Chrome**
 
@@ -89,7 +90,7 @@ Then:
    ```bash
    cd ~/meet-standup-turn && git pull
    ```
-   With the ZIP: download it again and replace the folder contents.
+   With the ZIP: download [the same link](https://github.com/ibro-makhmudov/meet-standup-turn/archive/refs/heads/main.zip) again and replace the folder contents.
 2. Open `chrome://extensions` and press **↻** on Meet Standup Turn.
 3. Reload the Meet tab.
 
