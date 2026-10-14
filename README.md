@@ -7,7 +7,9 @@ Meet always lists you first, so it is hard to see when your turn is. This extens
 - **Today starts: Péter** (optional) — pick it once; on later days the next person alphabetically starts.
   People not in the call are skipped; weekends don't count. With a starter set you also see your position ("8 of 12").
 
-No setup, no team list: names come from Meet's People panel (press **👥 Show my turn** if it's closed).
+No setup, no team list: names come from Meet's People panel. You don't need to keep it open: when you join
+(and when the number of people changes) the extension opens it for a moment, reads the names and closes it.
+It never does that while chat or another side panel is open.
 The only thing stored is per meeting link: who started last and the names seen in that meeting
 (`chrome.storage.local`, your browser only). The only network request is the update check:
 it reads `manifest.json` from this repository to compare version numbers.
