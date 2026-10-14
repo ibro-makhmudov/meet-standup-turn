@@ -35,91 +35,94 @@
 
   // ---------- reading Meet ----------
   const YOU = /\((you|te|ön|вы|siz)\)/i;
-  const visible = (el) => el.getClientRects().length > 0;
 
-  // Meet's People button (top right, shows the number of people). Labels differ by UI language.
+  // Accessible name: Meet labels its People button through aria-labelledby, not aria-label.
+  function accName(el) {
+    const by = el.getAttribute('aria-labelledby');
+    const ref = by && document.getElementById(by);
+    return (el.getAttribute('aria-label') || (ref && ref.textContent) || '').trim();
+  }
+  // Meet's People button (top right, its text is the number of people). Labels differ by UI language.
+  const PEOPLE = /^(people|show everyone|személyek|résztvevők|участники|люди|teilnehmer|personas|persone)\b/i;
   function peopleButton() {
-    return [...document.querySelectorAll('button[aria-label], [role="button"][aria-label]')]
-      .find((b) => !host.contains(b) && /^(people|show everyone|személyek|résztvevők|участники|люди)\b/i.test(b.getAttribute('aria-label')));
+    return [...document.querySelectorAll('[role="button"], button')]
+      .find((b) => !host.contains(b) && PEOPLE.test(accName(b)));
   }
   function peopleCount() {
     const b = peopleButton();
-    const m = b && ((b.innerText || '').match(/\d+/) || (b.getAttribute('aria-label') || '').match(/\d+/));
+    const m = b && (b.textContent || '').match(/\d+/);
     return m ? +m[0] : null;
   }
-  // Another side panel (chat, activities, info) is open: don't replace it with People.
-  const otherPanelOpen = () => [...document.querySelectorAll('[aria-pressed="true"][aria-label]')]
-    .some((b) => /chat|message|activit|info|details|üzenet|tevékeny|чат|сообщ/i.test(b.getAttribute('aria-label')));
 
-  // Rows of the People list that are visible now. Group rows like "Merged audio" contain
-  // the real people as nested rows, so rows with nested rows are skipped.
+  // Participant rows. Meet keeps the list in the page after the People panel was opened once,
+  // also while the panel is closed, so hidden rows are read too. Group rows like "Merged audio"
+  // contain the real people as nested rows, so rows with nested rows are skipped.
+  const PARTICIPANTS = /participants|résztvevők|участники|teilnehmer|participantes|partecipanti|uczestnicy/i;
+  function rows() {
+    const lists = [...document.querySelectorAll('[role="list"][aria-label]')].filter((l) => PARTICIPANTS.test(l.getAttribute('aria-label')));
+    const scope = lists.length ? lists : [...document.querySelectorAll('aside')];
+    return scope.flatMap((l) => [...l.querySelectorAll('[role="listitem"][aria-label]')])
+      .filter((el) => !el.querySelector('[role="listitem"]'));
+  }
   function readList() {
     const names = [], avatars = {};
-    let me = null;
-    for (const el of document.querySelectorAll('[role="listitem"][aria-label]')) {
-      if (!visible(el) || el.querySelector('[role="listitem"]')) continue;
+    let me = null, count = 0;
+    for (const el of rows()) {
       const label = el.getAttribute('aria-label').trim();
       const name = label.replace(/\s*\((you|te|ön|вы|siz)\)\s*$/i, '').trim();
       if (!name || name.length > 80) continue;
       names.push(name);
-      if (YOU.test(label) || YOU.test(el.innerText || '')) me = name;
+      count++;
+      if (YOU.test(label) || YOU.test(el.textContent || '')) me = name;
       const img = el.querySelector('img[src]');
       if (img) avatars[name] = img.src;
     }
-    return { names: R.sortNames(names), me, avatars };
+    return { names: R.sortNames(names), me, avatars, rows: count };
   }
 
-  let snap = null; // last full read of the People list { names, me, avatars, count }
+  // A side panel is on screen (chat, activities, info, or People itself).
+  const sidePanelOpen = () => [...document.querySelectorAll('aside')].some((a) => {
+    const r = a.getBoundingClientRect();
+    return r.width > 0 && r.left < innerWidth - 1 && r.right > 1;
+  });
+
+  let snap = null; // last read of the People list { names, me, avatars, rows }
   let snapping = false;
   let lastSnapAt = 0;
   let snapFails = 0; // People panel did not open: retry slowly, give up after 3
+  let snapCount = null; // people count when we last opened the panel
 
   function takeList(list) {
-    snap = { ...list, count: peopleCount() };
+    snap = list;
     if (list.me && list.me !== myName) { myName = list.me; set('me', myName); }
   }
 
-  // Open People for a moment, read it (scrolling to catch long lists), close it again.
+  // Open People for a moment so Meet renders the list, read it, close it again.
   async function snapshot() {
     const btn = peopleButton();
     if (!btn || snapping) return;
     snapping = true;
     lastSnapAt = Date.now();
+    snapCount = peopleCount();
     document.documentElement.setAttribute('data-standup-snap', '');
     try {
       btn.click();
       let list = null;
       for (let i = 0; i < 30 && !list; i++) {
         await sleep(100);
-        if (readList().names.length) list = readList();
+        if (rows().some((el) => el.getClientRects().length)) list = readList();
       }
       if (list) {
-        await sleep(250);
-        list = readList();
-        const scroller = findScroller();
-        if (scroller) {
-          scroller.scrollTop = scroller.scrollHeight;
-          await sleep(250);
-          const more = readList();
-          list = { names: R.sortNames([...list.names, ...more.names]), me: list.me || more.me, avatars: { ...list.avatars, ...more.avatars } };
-          scroller.scrollTop = 0;
-        }
-        takeList(list);
+        await sleep(300);
+        takeList(readList());
         snapFails = 0;
       } else snapFails++;
     } finally {
-      if (readList().names.length) peopleButton()?.click(); // close only what we opened
-      await sleep(150);
+      if (rows().some((el) => el.getClientRects().length)) peopleButton()?.click(); // close People if we left it open
+      await sleep(200);
       document.documentElement.removeAttribute('data-standup-snap');
       snapping = false;
     }
-  }
-  function findScroller() {
-    const item = [...document.querySelectorAll('[role="listitem"][aria-label]')].find(visible);
-    for (let el = item; el && el !== document.body; el = el.parentElement) {
-      if (el.scrollHeight > el.clientHeight + 10 && /auto|scroll/.test(getComputedStyle(el).overflowY)) return el;
-    }
-    return null;
   }
 
   // Keep Meet's panel invisible while we read it.
@@ -226,14 +229,15 @@
     if (!inCall) return;
     if (!meeting || meeting.code !== c) await loadMeeting(c);
 
-    // the People panel is open: read it directly
-    const live = snapping ? null : readList();
-    if (live && live.names.length) takeList(live);
-    else if (!snapping && !otherPanelOpen()) {
+    // read the list (hidden or not); open the panel only when Meet hasn't rendered it yet,
+    // or when the number of people no longer matches and the count changed since our last try
+    if (!snapping) {
+      const list = readList();
       const count = peopleCount();
-      const stale = !snap || (count != null && count !== snap.count);
-      const wait = snap || snapFails ? RESNAP_MS : 3000;
-      if (stale && snapFails < 3 && Date.now() - lastSnapAt > wait) snapshot().then(() => tick());
+      if (list.names.length) takeList(list);
+      const missing = !list.names.length || (count != null && count !== list.rows && count !== snapCount);
+      const wait = snap || snapFails ? RESNAP_MS : 1500;
+      if (missing && snapFails < 3 && !sidePanelOpen() && Date.now() - lastSnapAt > wait) snapshot().then(() => tick());
     }
 
     const present = snap ? snap.names : null;

@@ -16,7 +16,7 @@
     .ctl { margin-top: 10px; display: flex; gap: 6px; }
     .ctl input { flex: 1; }
     .toolbar { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); }
-    .toolbar button { background: #3c4043; color: #e8eaed; border: 0; border-radius: 20px; padding: 10px 16px; cursor: pointer; }
+    .toolbar button, .toolbar [role=button] { display: inline-block; background: #3c4043; color: #e8eaed; border: 0; border-radius: 20px; padding: 10px 16px; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -24,12 +24,13 @@
   <aside class="people" id="panel">
     <div class="sect">
       <div class="h"><span>Contributors</span><span id="cnt"></span></div>
-      <div role="list" id="list"></div>
+      <div role="list" aria-label="Participants" id="list"></div>
     </div>
     <div class="ctl"><input id="nm" placeholder="name"><button id="join">join</button></div>
   </aside>
-  <div class="toolbar"><button aria-label="People" id="pbtn">People</button>
-    <button aria-label="Chat with everyone" aria-pressed="false" id="cbtn">Chat</button></div>
+  <div class="toolbar"><div role="button" tabindex="0" aria-labelledby="plbl" id="pbtn"></div><span id="plbl" hidden>People</span>
+    <button aria-label="Chat with everyone" id="cbtn">Chat</button></div>
+  <aside id="chat" class="people" aria-label="Side panel"><textarea placeholder="Send a message"></textarea></aside>
   <script>
     const params = new URLSearchParams(location.search);
     globalThis.STANDUP_DEMO = true;
@@ -37,8 +38,11 @@
     if (params.get('starter')) localStorage.setItem('meet:demo', JSON.stringify({ known: [], last: { date: params.get('date'), starter: params.get('starter') } }));
     if (params.has('open')) panel.classList.add('open');
     if (params.has('clean')) document.head.insertAdjacentHTML('beforeend', '<style>.ctl, [role=listitem] button { display: none !important; }</style>');
-    pbtn.onclick = () => setTimeout(() => panel.classList.toggle('open'), 200);
-    cbtn.onclick = () => cbtn.setAttribute('aria-pressed', cbtn.getAttribute('aria-pressed') === 'true' ? 'false' : 'true');
+    // like Meet: the list is rendered on first open (?lazy=1) and stays in the page when closed
+    let rendered = !params.has('lazy');
+    pbtn.onclick = () => setTimeout(() => { chat.classList.remove('open'); panel.classList.toggle('open'); if (!rendered) { rendered = true; draw(); } }, 200);
+    cbtn.onclick = () => { panel.classList.remove('open'); chat.classList.toggle('open'); };
+    if (params.has('chat')) chat.classList.add('open');
     const self = params.get('self') || 'Imre Fekete';
     let people = (params.get('people') || 'Ádám Kovács,Anna Tóth,Balázs Nagy,Dávid Szabó,David Varga,Krisztina Hegedűs,Lili Simon,Márk Molnár,Nóra Pap,Péter Lakatos,Zoltán Fehér').split(',');
     // Meet-like re-render: rebuilds all rows whenever someone joins or leaves
@@ -48,6 +52,7 @@
     const draw = () => {
       const sorted = [...people].sort((a, b) => a.localeCompare(b, 'en'));
       const group = sorted.filter((p) => merged.includes(p));
+      if (!rendered) { list.innerHTML = ''; pbtn.textContent = '👥 ' + (people.length + 1); return; }
       list.innerHTML = [`<div role="listitem" aria-label="${self}"><span class="av">I</span><span class="nm">${self} (You)</span></div>`]
         .concat(group.length ? [`<div role="listitem" aria-label="Merged audio" style="display:block"><div style="padding:8px 0">Merged audio</div>${group.map(row).join('')}</div>`] : [])
         .concat(sorted.filter((p) => !merged.includes(p)).map(row)).join('');
