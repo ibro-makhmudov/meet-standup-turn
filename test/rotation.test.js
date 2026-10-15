@@ -66,3 +66,30 @@ test('update check compares versions numerically', () => {
   assert.equal(R.newerVersion('1.0', '1.0.1'), false);
   assert.equal(R.newerVersion(null, '1.0.0'), false);
 });
+
+test('speaking order starts with the starter and wraps around', () => {
+  assert.deepEqual(R.speakingOrder(TEAM, 'Nóra Pap').slice(0, 3), ['Nóra Pap', 'Péter Lakatos', 'Ádám Kovács']);
+  assert.equal(R.speakingOrder(TEAM, null)[0], 'Ádám Kovács');
+});
+
+test('a team is found by link, or by the people in the call', () => {
+  const team = { id: 't', codes: ['aaa-bbbb-ccc'], known: TEAM, last: { date: '2026-10-15', starter: 'Nóra Pap' } };
+  const other = { id: 'o', codes: ['xxx-yyyy-zzz'], known: ['Ann', 'Bob', 'Cid', 'Dan'], last: null };
+  const groups = [other, team];
+  assert.equal(R.findGroup(groups, 'aaa-bbbb-ccc', null), team);
+  // a different link for the same standup, a few people missing and a guest
+  assert.equal(R.findGroup(groups, 'new-link-xyz', [...without('Péter Lakatos', 'Lili Simon'), 'Guest One']), team);
+  // a 1:1 with two of the team is not the standup
+  assert.equal(R.findGroup(groups, 'one-onee-one', [ME, 'Nóra Pap']), null);
+});
+
+test('groups of the same team are merged, keeping the latest starter', () => {
+  const a = { id: 'a', codes: ['l1'], known: TEAM, last: { date: '2026-10-14', starter: 'Anna Tóth' }, seen: '2026-10-14' };
+  const b = { id: 'b', codes: ['l2'], known: without('Ádám Kovács'), last: { date: '2026-10-15', starter: 'Nóra Pap' }, seen: '2026-10-15' };
+  const c = { id: 'c', codes: ['l3'], known: ['Ann', 'Bob', 'Cid'], last: null };
+  const out = R.mergeGroups([a, b, c]);
+  assert.equal(out.length, 2);
+  assert.deepEqual(out[0].codes, ['l1', 'l2']);
+  assert.deepEqual(out[0].last, { date: '2026-10-15', starter: 'Nóra Pap' });
+  assert.equal(out[0].seen, '2026-10-15');
+});

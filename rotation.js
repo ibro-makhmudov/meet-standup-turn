@@ -31,19 +31,25 @@
     return null;
   }
 
+  // Today's speaking order: alphabetical, starting with the starter (or A–Z without one).
+  function speakingOrder(present, starter) {
+    const list = sortNames(present);
+    const s = starter ? list.indexOf(starter) : -1;
+    return s > 0 ? list.slice(s).concat(list.slice(0, s)) : list;
+  }
+
   // present: names in the call (me included). starter: optional.
   // -> { before, position, total } ; before === null means I go first.
   function myTurn(present, me, starter) {
     const list = sortNames(present);
     const total = list.length;
-    const idx = list.indexOf(me);
-    if (idx === -1 || total < 2) return null;
+    if (!list.includes(me) || total < 2) return null;
     if (starter && list.includes(starter)) {
-      const s = list.indexOf(starter);
-      const order = list.slice(s).concat(list.slice(0, s));
+      const order = speakingOrder(list, starter);
       const pos = order.indexOf(me);
       return { before: pos === 0 ? null : order[pos - 1], position: pos + 1, total };
     }
+    const idx = list.indexOf(me);
     return { before: list[(idx - 1 + total) % total], position: null, total };
   }
 
@@ -72,7 +78,43 @@
     return false;
   }
 
-  const api = { newerVersion, cmp, sortNames, ymd, parse, addDays, isWeekday, nextAfter, myTurn, starterToday };
+  // ---- teams: one standup can use several Meet links, so data is kept per team, found by people ----
+  // group: { id, codes: [meeting codes], known: [names seen], last: {date, starter} | null, seen: 'YYYY-MM-DD' }
+  function overlap(a, b) {
+    const set = new Set(a);
+    return b.filter((x) => set.has(x)).length;
+  }
+  // Same team: at least 3 shared people and 60% of the smaller group.
+  function sameTeam(a, b) {
+    const shared = overlap(a, b);
+    return shared >= 3 && shared / Math.max(1, Math.min(a.length, b.length)) >= 0.6;
+  }
+  // The group for this meeting: by link first, otherwise by who is in the call.
+  function findGroup(groups, code, present) {
+    const byCode = groups.find((g) => g.codes.includes(code));
+    if (byCode || !present) return byCode || null;
+    let best = null, bestShared = 0;
+    for (const g of groups) {
+      const shared = overlap(g.known, present);
+      if (sameTeam(g.known, present) && shared > bestShared) { best = g; bestShared = shared; }
+    }
+    return best;
+  }
+  // Join groups that turned out to be the same team (e.g. data saved per link by older versions).
+  function mergeGroups(groups) {
+    const out = [];
+    for (const g of groups) {
+      const t = out.find((o) => sameTeam(o.known, g.known));
+      if (!t) { out.push({ ...g, codes: [...g.codes], known: [...g.known] }); continue; }
+      t.codes = [...new Set([...t.codes, ...g.codes])];
+      t.known = sortNames([...t.known, ...g.known]);
+      if (g.last && (!t.last || g.last.date > t.last.date)) t.last = g.last;
+      if ((g.seen || '') > (t.seen || '')) t.seen = g.seen;
+    }
+    return out;
+  }
+
+  const api = { speakingOrder, sameTeam, findGroup, mergeGroups, newerVersion, cmp, sortNames, ymd, parse, addDays, isWeekday, nextAfter, myTurn, starterToday };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.StandupRotation = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

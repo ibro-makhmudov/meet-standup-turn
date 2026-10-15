@@ -22,7 +22,7 @@ No setup and no account. Names are read from Meet's People panel and never leave
 
 ## Privacy practices
 - **Single purpose:** Shows a Google Meet participant when their turn is in an alphabetical standup, and who starts today.
-- **storage justification:** Remembers, per meeting link, who started the last standup and the names seen in that meeting, so the next starter can be worked out. Stored locally only.
+- **storage justification:** Remembers, per team, who started the last standup, the names seen and the meeting links used, so the next starter can be worked out. Stored locally only.
 - **Host permission justification (meet.google.com):** Reads participant names from the People panel of the current call to compute the speaking order and shows a small overlay with the result.
 - **Remote code:** No, I am not using remote code.
 - **Data usage:** names are processed and stored only in the user's browser; nothing is transmitted.

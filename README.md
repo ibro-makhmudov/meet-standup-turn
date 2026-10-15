@@ -10,8 +10,25 @@ This Chrome extension shows it in a small card in the call:
 - **You speak after David Varga**: the person alphabetically before you among the people in the call.
 - **7 of 8**: your place in today's order (shown when "Today starts" is set).
 - **Today starts**: optional. Pick it once; on the next days the next person alphabetically starts.
+- **Today's order**: the whole numbered list, starting with today's first speaker, you highlighted.
 
 No account, no setup, no team list. Names come from the call and never leave your browser.
+
+## Features
+
+- Shows **after whom you speak** in an alphabetical standup, live, in the Meet call.
+- **Works on its own**: no need to open the People panel; the card appears a second after you join.
+- **Updates live** when people join or leave (late joiners, two people with similar names, someone dropping out).
+- **Who starts today** (optional): pick once, then it rotates alphabetically every weekday by itself.
+  People who are absent are skipped; days you missed are caught up.
+- **Numbered speaking order** starting with today's first speaker, with you and the person before you marked.
+- **One team, many links**: the rotation belongs to the team, not to one Meet link. A new link for the same
+  standup is recognised by who is in the call.
+- Handles Meet's quirks: your own name pinned on top, "Merged audio" groups from meeting rooms,
+  the same account joined from two devices, accents in names (Dávid / David).
+- **Looks like Meet**: dark Material card, Meet-style menu, can be minimized to a round button.
+- **Private**: no account, no server, no analytics; data stays in your browser.
+- **Update notice** in the card when a new version is on GitHub.
 
 ## Install
 
@@ -65,12 +82,24 @@ From then on:
 - after the call has run for 3 minutes, today's starter is remembered, so the rotation continues by itself;
 - if you missed some days, those days are skipped over (one person per weekday). If the guess is wrong, just pick the right person.
 
-The starter is remembered **per meeting link**, so different meetings don't mix.
 Pick **Don't track who starts** at the bottom of the menu to turn it off.
 
 When it's you:
 
 <img src="docs/you-start.png" alt="Card: Your turn, You start today" width="330">
+
+### Today's order
+
+Click **Today's order** to see everyone, numbered, starting with today's first speaker.
+You are highlighted and the person before you is marked. Without a chosen starter it shows the plain A–Z list.
+
+<img src="docs/order.png" alt="Numbered order: 1 Nóra Pap … 8 David Varga (before you), 9 Imre Fekete (You)" width="330">
+
+### Several meeting links for one standup
+
+The starter is remembered for the **team**, not for one link. When you join a link the extension hasn't seen,
+it looks at who is in the call: if at least 3 people and 60% of them are a team it knows, it's the same standup
+and the rotation continues. A call with different people (a 1:1, another team) starts its own record.
 
 ### Minimize
 
@@ -105,7 +134,10 @@ or the "Ready to join?" screen. If you just installed or updated, check that you
 
 **"Merged audio".** People joining from a meeting room device are grouped by Meet; they are counted as normal people.
 
-**Privacy.** Nothing is sent anywhere. The extension stores only who started last and the names seen in each meeting,
+**How does it notice people joining or leaving?** Every 1.5 seconds it reads Meet's participant list
+(Meet keeps it in the page, hidden, once People was opened) and recalculates. The card only redraws when something changed.
+
+**Privacy.** Nothing is sent anywhere. The extension stores only, per team, who started last, the names seen and the meeting links used,
 in your browser. Its only network request reads the latest version number from this repository.
 See [PRIVACY.md](PRIVACY.md).
 
@@ -125,4 +157,5 @@ python3 -m http.server 8765   # then open http://localhost:8765/demo/index.html?
 Demo URL options: `date=2026-10-13` fakes today, `reset=1` clears saved data, `open=1` opens People,
 `lazy=1` renders the list only after People is opened once (like Meet), `chat=1` starts with chat open,
 `people=A,B,C` sets who is in the call, `merged=A,B` groups people under "Merged audio",
-`starter=Name` presets today's starter, `menu=1`, `min=1`, `update=1.2.0`, `clean=1` for screenshots.
+`starter=Name` presets today's starter, `link=abc-defg-hij` pretends to be another meeting link,
+`order=1` opens Today's order, `menu=1`, `min=1`, `update=1.2.0`, `clean=1` for screenshots.

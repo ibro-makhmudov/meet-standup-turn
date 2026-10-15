@@ -1,7 +1,8 @@
 // Card in Google Meet: "You speak after X" and (optionally) "Today starts: Y".
 // Names come from Meet's People panel. When the panel is closed, the extension opens it for a
 // moment on joining (and when the number of people changes), reads the list and closes it again.
-// Remembers per meeting link only: who started last time and the names seen in that meeting.
+// Remembers per team (found by meeting link or by who is in the call): who started last time
+// and the names seen. One standup can use several Meet links.
 (async function () {
   const R = globalThis.StandupRotation;
   if (!R || document.getElementById('standup-turn-root')) return;
@@ -21,16 +22,39 @@
   }
 
   const code = () => (location.pathname.match(/^\/([a-z]{3,4}-[a-z]{4}-[a-z]{3,4})\b/) || [])[1]
-    || (globalThis.STANDUP_DEMO ? 'demo' : null);
+    || (globalThis.STANDUP_DEMO ? globalThis.STANDUP_DEMO_CODE || 'demo' : null);
   const today = () => (globalThis.STANDUP_TODAY || R.ymd(new Date()));
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-  let meeting = null; // { code, known: [], last: {date, starter} | null }
-  async function loadMeeting(c) {
-    const m = (await get('meet:' + c)) || {};
-    meeting = { code: c, known: m.known || [], last: m.last || null };
+  // Data is kept per team, not per link. A call belongs to a team by its link, or, for a link
+  // not seen before, by the people in it (R.findGroup). group: { id, codes, known, last, seen }
+  const newId = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
+  async function loadGroups() {
+    let gs = (await get('groups')) || [];
+    // 1.1 kept one record per link ("meet:<code>"): move them into teams once
+    const all = area ? await area.get(null)
+      : Object.fromEntries(Object.keys(localStorage).map((k) => { try { return [k, JSON.parse(localStorage.getItem(k))]; } catch { return [k, null]; } }));
+    const old = Object.keys(all).filter((k) => k.startsWith('meet:'));
+    if (old.length) {
+      for (const k of old) {
+        const m = all[k] || {};
+        gs.push({ id: newId(), codes: [k.slice(5)], known: m.known || [], last: m.last || null, seen: today() });
+      }
+      gs = R.mergeGroups(gs);
+      await set('groups', gs);
+      if (area) await area.remove(old); else old.forEach((k) => localStorage.removeItem(k));
+    }
+    const cutoff = R.addDays(today(), -90); // forget teams not seen for 90 days
+    return gs.filter((g) => !g.seen || g.seen >= cutoff);
   }
-  const saveMeeting = () => set('meet:' + meeting.code, { known: meeting.known, last: meeting.last });
+  let groups = await loadGroups();
+  let team = null; // the team of the current call, once known
+  const saveGroups = () => set('groups', groups);
+  function newTeam(c) {
+    team = { id: newId(), codes: [c], known: [], last: null, seen: today() };
+    groups.push(team);
+    return team;
+  }
   let myName = (await get('me')) || null;
 
   // ---------- reading Meet ----------
@@ -138,6 +162,8 @@
     min: 'M19 13H5v-2h14v2z',
     flag: 'M14.4 6 14 4H5v17h2v-7h5.6l.4 2h7V6z',
     up: 'M4 12l1.41 1.41L11 7.83V20h2V7.83l5.58 5.59L20 12l-8-8-8 8z',
+    less: 'M12 8l-6 6 1.41 1.41L12 10.83l4.59 4.58L18 14z',
+    list: 'M2 17h2v.5H3v1h1v.5H2v1h3v-4H2v1zm1-9h1V4H2v1h1v3zm-1 3h1.8L2 13.1v.9h3v-1H3.2L5 10.9V10H2v1zm5-6v2h14V5H7zm0 14h14v-2H7v2zm0-6h14v-2H7v2z',
   };
   const svg = (d, size = 20) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="${d}"/></svg>`;
 
@@ -180,6 +206,20 @@
       .mi .ck { width: 20px; color: #a8c7fa; display: grid; place-items: center; }
       .mi.muted { color: #c4c7c5; }
       .msep { height: 1px; background: #444746; margin: 8px 0; }
+      .toggle { width: 100%; border: 0; background: none; cursor: pointer; text-align: left; font: inherit; color: #c4c7c5; }
+      .toggle:hover { background: rgba(227,227,227,.04); }
+      .toggle:last-child { border-radius: 0 0 16px 16px; }
+      .cnt { font-size: 12px; color: #c4c7c5; font-variant-numeric: tabular-nums; }
+      .order { position: relative; list-style: none; padding: 0 0 8px; max-height: calc(100vh - 210px); overflow: auto; scrollbar-width: thin; scrollbar-color: #5f6368 transparent; }
+      .order li { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 12px; font-size: 14px; color: #e3e3e3; }
+      .order .num { width: 20px; text-align: right; font-size: 12px; color: #c4c7c5; font-variant-numeric: tabular-nums; flex: none; }
+      .order .av.sm { width: 24px; height: 24px; font-size: 12px; }
+      .order .nm { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .order li.before .nm { font-weight: 500; }
+      .order li.me { background: #004a77; color: #c2e7ff; }
+      .order li.me .num { color: #c2e7ff; }
+      .order .tag { flex: none; font-size: 11px; color: #a8c7fa; }
+      .order li.me .tag { color: #c2e7ff; }
       .upd { display: flex; align-items: center; gap: 6px; padding: 0 12px 12px; color: #a8c7fa; font-size: 12px; text-decoration: none; }
       .upd:hover { text-decoration: underline; }
       .fab { width: 48px; height: 48px; border-radius: 50%; border: 0; background: #333537; color: #e3e3e3; cursor: pointer;
@@ -206,6 +246,7 @@
   const ui = {
     min: localStorage.getItem('standup-min') === '1',
     menu: false,
+    order: localStorage.getItem('standup-order') === '1',
     update: null,
     lastSig: '',
     callSeenAt: null,
@@ -227,7 +268,6 @@
     const inCall = !!(c && peopleButton());
     host.style.display = inCall ? '' : 'none';
     if (!inCall) return;
-    if (!meeting || meeting.code !== c) await loadMeeting(c);
 
     // read the list (hidden or not); open the panel only when Meet hasn't rendered it yet,
     // or when the number of people no longer matches and the count changed since our last try
@@ -243,24 +283,36 @@
     const present = snap ? snap.names : null;
     const me = (snap && snap.me) || myName;
 
-    // remember everyone seen in this meeting (to step over days you miss)
-    if (present && present.some((n) => !meeting.known.includes(n))) {
-      meeting.known = R.sortNames([...meeting.known, ...present]);
-      await saveMeeting();
+    const t = today();
+
+    // which team is this call: by link, otherwise by who is here (only once 3+ people are in,
+    // so the first two people to join don't start a new team)
+    if (!team || !team.codes.includes(c)) {
+      team = R.findGroup(groups, c, present && present.length >= 3 ? present : null);
+      if (!team && present && present.length >= 3) newTeam(c);
+      if (team && !team.codes.includes(c)) team.codes.push(c);
+      if (team) await saveGroups();
+    }
+    // remember everyone seen with this team (to step over days you miss), and when
+    if (team && present && (present.some((n) => !team.known.includes(n)) || team.seen !== t)) {
+      team.known = R.sortNames([...team.known, ...present]);
+      team.seen = t;
+      groups = R.mergeGroups(groups);
+      team = groups.find((g) => g.codes.includes(c));
+      await saveGroups();
     }
 
-    const t = today();
-    const starter = R.starterToday(meeting.last, t, meeting.known, present);
+    const starter = R.starterToday(team && team.last, t, team ? team.known : [], present);
     if (present && present.length >= 3 && !ui.callSeenAt) ui.callSeenAt = Date.now();
-    if (starter && meeting.last.date < t && ui.callSeenAt && Date.now() - ui.callSeenAt >= AUTO_SAVE_MS) {
-      meeting.last = { date: t, starter };
-      await saveMeeting();
+    if (starter && team.last.date < t && ui.callSeenAt && Date.now() - ui.callSeenAt >= AUTO_SAVE_MS) {
+      team.last = { date: t, starter };
+      await saveGroups();
     }
 
     const turn = present && me ? R.myTurn(present, me, starter) : null;
     ui.present = present;
     ui.starter = starter;
-    const sig = JSON.stringify([present, me, starter, turn, ui.update, ui.min, ui.menu, snap && snap.avatars]);
+    const sig = JSON.stringify([present, me, starter, turn, ui.update, ui.min, ui.menu, ui.order, team && !!team.last, snap && snap.avatars]);
     if (sig === ui.lastSig) return;
     ui.lastSig = sig;
     render(present, me, starter, turn);
@@ -293,12 +345,24 @@
     if (present) {
       const menu = ui.menu ? `<div class="menu" role="menu">
           ${present.map((n) => `<div class="mi${n === starter ? ' sel' : ''}" role="menuitem" data-a="pick" data-n="${esc(n)}"><span class="ck">${n === starter ? svg(ICON.check) : ''}</span>${esc(n)}</div>`).join('')}
-          ${meeting.last ? `<div class="msep"></div><div class="mi muted" role="menuitem" data-a="clear"><span class="ck"></span>Don’t track who starts</div>` : ''}
+          ${team && team.last ? `<div class="msep"></div><div class="mi muted" role="menuitem" data-a="clear"><span class="ck"></span>Don’t track who starts</div>` : ''}
         </div>` : '';
       row = `<div class="sep"></div>
         <div class="row">${svg(ICON.flag, 18)}<span class="grow">Today starts</span>
           <button class="dd ${starter ? '' : 'empty'}" data-a="menu" title="Pick who starts today; the next days follow alphabetically">
             <span>${starter ? esc(starter) : 'Choose'}</span>${svg(ICON.down, 18)}</button>${menu}</div>`;
+
+      // numbered speaking order: starter first (A–Z when nobody is chosen), you highlighted
+      const order = R.speakingOrder(present, starter);
+      const before = turn && turn.before;
+      const items = ui.order ? `<ol class="order">${order.map((n, i) => `
+          <li class="${n === me ? 'me' : ''}${n === before ? ' before' : ''}">
+            <span class="num">${i + 1}</span>${avatar(n, avatars, 'sm')}<span class="nm" title="${esc(n)}">${esc(n)}</span>
+            ${n === me ? '<span class="tag">You</span>' : n === before ? '<span class="tag">before you</span>' : ''}</li>`).join('')}</ol>` : '';
+      row += `<div class="sep"></div>
+        <button class="row toggle" data-a="order" aria-expanded="${ui.order}">${svg(ICON.list, 18)}
+          <span class="grow">${starter ? 'Today’s order' : 'Order A–Z'}</span><span class="cnt">${order.length}</span>
+          ${svg(ui.order ? ICON.less : ICON.down, 18)}</button>${items}`;
     }
     const upd = ui.update
       ? `<a class="upd" href="https://github.com/ibro-makhmudov/meet-standup-turn#update" target="_blank"
@@ -310,6 +374,13 @@
         ${row}${upd}</div>`;
     const sel = root.querySelector('.menu .sel');
     if (sel) sel.parentElement.scrollTop = sel.offsetTop - 8;
+    // scroll the order only if you are below the fold, keeping the person before you visible
+    const mine = root.querySelector('.order .me');
+    if (mine) {
+      const list = mine.parentElement;
+      const bottom = mine.offsetTop + mine.offsetHeight + 8;
+      list.scrollTop = bottom > list.clientHeight ? bottom - list.clientHeight : 0;
+    }
   }
 
   // ---------- events ----------
@@ -324,14 +395,18 @@
       localStorage.setItem('standup-min', ui.min ? '1' : '0');
     } else if (a === 'menu') {
       ui.menu = !ui.menu;
+    } else if (a === 'order') {
+      ui.order = !ui.order;
+      localStorage.setItem('standup-order', ui.order ? '1' : '0');
     } else if (a === 'pick') {
-      meeting.last = { date: today(), starter: el.dataset.n };
+      if (!team) newTeam(code());
+      team.last = { date: today(), starter: el.dataset.n };
       ui.menu = false;
-      await saveMeeting();
+      await saveGroups();
     } else if (a === 'clear') {
-      meeting.last = null;
+      if (team) team.last = null;
       ui.menu = false;
-      await saveMeeting();
+      await saveGroups();
     }
     ui.lastSig = '';
     tick();

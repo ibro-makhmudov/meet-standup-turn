@@ -67,6 +67,8 @@
     if (params.get('date')) globalThis.STANDUP_TODAY = params.get('date');
     // screenshot helpers: ?update=1.2.0 shows the update line, ?min=1 starts minimized, ?menu=1 opens the menu
     if (params.get('update')) globalThis.STANDUP_DEMO_UPDATE = params.get('update');
+    if (params.get('link')) globalThis.STANDUP_DEMO_CODE = params.get('link'); // another meeting link
+    if (params.has('order')) localStorage.setItem('standup-order', '1');
     localStorage.setItem('standup-min', params.has('min') ? '1' : '0');
     if (params.has('menu')) setTimeout(() => document.getElementById('standup-turn-root').shadowRoot.querySelector('[data-a=menu]').click(), 2500);
   </script>
