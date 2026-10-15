@@ -28,7 +28,9 @@ No account, no setup, no team list. Names come from the call and never leave you
   the same account joined from two devices, accents in names (Dávid / David).
 - **Looks like Meet**: dark Material card, Meet-style menu, can be minimized to a round button.
 - **Private**: no account, no server, no analytics; data stays in your browser.
-- **Update notice** in the card when a new version is on GitHub.
+- **Toolbar window**: click the icon to see update status, your standups (who starts today and next time,
+  links, people) and fix or forget them. The icon shows **↑** when an update is waiting.
+- **Update notice** in the card, and a **Reload extension** button once the new files are downloaded.
 
 ## Install
 
@@ -107,9 +109,20 @@ Click **–** to shrink the card to a round button; click the button to open it 
 
 <img src="docs/minimized.png" alt="Minimized round button" width="56">
 
+## The toolbar window
+
+Click the extension icon (pin it from the puzzle icon first) to see:
+
+<img src="docs/popup-uptodate.png" alt="Window: Up to date, a standup with today's and next starter, links, people, You" width="330">
+
+- **Updates**: up to date / update available (with the steps) / downloaded (with **Reload extension**). **Check now** checks GitHub right away.
+- **Your standups**: for each team, who starts today and on the next weekday, the Meet links it used (click to open),
+  the people seen. **Stop tracking who starts** clears the starter; **Forget** deletes the team.
+- **You**: your name as Meet shows it.
+
 ## Update
 
-When a new version is on GitHub, the card shows:
+When a new version is on GitHub, the extension icon gets a **↑** badge, and the card and the toolbar window show it:
 
 <img src="docs/update.png" alt="Card with Update 1.2.1 available" width="330">
 
@@ -122,9 +135,9 @@ When a new version is on GitHub, the card shows:
 - without git: download [the ZIP](https://github.com/ibro-makhmudov/meet-standup-turn/archive/refs/heads/main.zip) again
   and replace the files in your existing folder (keep the folder where it is: Chrome remembers its path).
 
-**2. Click "Reload extension" in the card.** Within half a minute the card notices the new files:
+**2. Click "Reload extension"**, in the card (it notices the new files within half a minute) or in the toolbar window:
 
-<img src="docs/downloaded.png" alt="Card: 1.2.1 downloaded, Reload extension" width="330">
+<img src="docs/downloaded.png" alt="Card: 1.2.1 downloaded, Reload extension" width="330"> <img src="docs/popup-downloaded.png" alt="Window: 1.3.0 is downloaded, Reload extension" width="330">
 
 **3. Refresh the Meet tab.** If you are in a call, do it after the call (refreshing means rejoining).
 
@@ -146,6 +159,9 @@ or the "Ready to join?" screen. If you just replaced the files, the extension mu
 
 **How does it notice people joining or leaving?** Every 1.5 seconds it reads Meet's participant list
 (Meet keeps it in the page, hidden, once People was opened) and recalculates. The card only redraws when something changed.
+
+**"Can't read or change site's data" in the icon's menu.** That's Chrome's wording on any site except Google Meet:
+the extension only has access to meet.google.com.
 
 **Privacy.** Nothing is sent anywhere. The extension stores only, per team, who started last, the names seen and the meeting links used,
 in your browser. Its only network request reads the latest version number from this repository.

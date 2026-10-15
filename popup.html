@@ -1,0 +1,102 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Meet Standup Turn</title>
+  <style>
+    :root {
+      --surface: #ffffff; --container: #f0f4f9; --container-high: #e9eef6; --on-surface: #1f1f1f; --variant: #444746;
+      --outline: #c4c7c5; --primary: #0b57d0; --on-primary: #ffffff; --primary-container: #d3e3fd; --on-primary-container: #041e49;
+      --ok: #146c2e; --error: #b3261e;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --surface: #1e1f20; --container: #282a2c; --container-high: #333537; --on-surface: #e3e3e3; --variant: #c4c7c5;
+        --outline: #444746; --primary: #a8c7fa; --on-primary: #062e6f; --primary-container: #004a77; --on-primary-container: #c2e7ff;
+        --ok: #6dd58c; --error: #f2b8b5;
+      }
+    }
+    * { box-sizing: border-box; margin: 0; }
+    body { width: 360px; background: var(--surface); color: var(--on-surface); font: 14px/20px "Google Sans Text", "Google Sans", Roboto, Arial, sans-serif;
+           -webkit-font-smoothing: antialiased; }
+    h1, h2, .title { font-family: "Google Sans", Roboto, Arial, sans-serif; font-weight: 500; }
+    a { color: var(--primary); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    svg { flex: none; }
+    header { display: flex; align-items: center; gap: 12px; padding: 16px 16px 12px; }
+    header img { width: 32px; height: 32px; }
+    header h1 { font-size: 16px; line-height: 22px; flex: 1; }
+    header .ver { font-size: 12px; color: var(--variant); }
+    section { padding: 4px 16px 16px; }
+    h2 { font-size: 12px; line-height: 16px; letter-spacing: .4px; text-transform: uppercase; color: var(--variant); margin: 8px 0; }
+    .box { background: var(--container); border-radius: 16px; padding: 12px 14px; }
+    .box + .box { margin-top: 8px; }
+    .status { display: flex; align-items: center; gap: 10px; }
+    .status .grow { flex: 1; min-width: 0; }
+    .status .main { font-weight: 500; }
+    .status .sub { font-size: 12px; line-height: 16px; color: var(--variant); }
+    .ok { color: var(--ok); }
+    .up { color: var(--primary); }
+    .btn { border: 0; border-radius: 20px; height: 32px; padding: 0 14px; font: 500 13px "Google Sans", Roboto, sans-serif; cursor: pointer; white-space: nowrap; }
+    .btn.filled { background: var(--primary); color: var(--on-primary); }
+    .btn.text { background: none; color: var(--primary); padding: 0 10px; }
+    .btn.text:hover, .btn.tonal:hover { background: color-mix(in srgb, var(--primary) 8%, transparent); }
+    .btn.tonal { background: var(--primary-container); color: var(--on-primary-container); }
+    .btn:disabled { opacity: .5; cursor: default; }
+    .steps { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--outline); font-size: 13px; color: var(--variant); }
+    .steps ol { padding-left: 18px; }
+    .steps li { margin: 4px 0; }
+    code { font: 12px/18px "Roboto Mono", Menlo, monospace; background: var(--container-high); border-radius: 6px; padding: 2px 6px; color: var(--on-surface); }
+    .row { display: flex; align-items: center; gap: 8px; }
+    .row .grow { flex: 1; min-width: 0; }
+    .team .title { font-size: 14px; }
+    .team .meta { font-size: 12px; color: var(--variant); }
+    .kv { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; margin: 10px 0 6px; font-size: 13px; }
+    .kv dt { color: var(--variant); }
+    .kv dd { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+    .chip { font-size: 12px; line-height: 16px; padding: 4px 10px; border-radius: 8px; border: 1px solid var(--outline); color: var(--on-surface); }
+    a.chip:hover { background: var(--container-high); text-decoration: none; }
+    details { margin-top: 8px; font-size: 12px; color: var(--variant); }
+    details summary { cursor: pointer; }
+    details p { margin-top: 4px; line-height: 18px; }
+    .actions { display: flex; justify-content: flex-end; gap: 4px; margin-top: 6px; }
+    .empty { color: var(--variant); font-size: 13px; }
+    footer { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 12px 16px 16px; border-top: 1px solid var(--outline); font-size: 12px; }
+    .spin { animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="icons/icon48.png" alt="">
+    <h1>Meet Standup Turn</h1>
+    <span class="ver" id="ver"></span>
+  </header>
+
+  <section>
+    <h2>Updates</h2>
+    <div class="box" id="update"></div>
+  </section>
+
+  <section>
+    <h2>Your standups</h2>
+    <div id="teams"></div>
+  </section>
+
+  <section id="meSection" hidden>
+    <h2>You</h2>
+    <div class="box"><div class="row"><span class="grow" id="me"></span><span class="team meta">as Meet shows you</span></div></div>
+  </section>
+
+  <footer>
+    <a href="https://github.com/ibro-makhmudov/meet-standup-turn#using-it" target="_blank">How it works</a>
+    <a href="https://github.com/ibro-makhmudov/meet-standup-turn/issues/new" target="_blank">Report a problem</a>
+    <a href="https://github.com/ibro-makhmudov/meet-standup-turn/blob/main/PRIVACY.md" target="_blank">Privacy</a>
+    <a href="https://github.com/ibro-makhmudov/meet-standup-turn" target="_blank">GitHub</a>
+  </footer>
+
+  <script src="rotation.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
