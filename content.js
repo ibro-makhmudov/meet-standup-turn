@@ -221,7 +221,13 @@
       .order .tag { flex: none; font-size: 11px; color: #a8c7fa; }
       .order li.me .tag { color: #c2e7ff; }
       .upd { display: flex; align-items: center; gap: 6px; padding: 0 12px 12px; color: #a8c7fa; font-size: 12px; text-decoration: none; }
-      .upd:hover { text-decoration: underline; }
+      a.upd:hover { text-decoration: underline; }
+      .upd span { white-space: nowrap; }
+      .upd.note span { white-space: normal; }
+      .upd .link { margin-left: auto; white-space: nowrap; border: 0; background: none; color: #a8c7fa; font: 500 12px "Google Sans", Roboto, sans-serif;
+                   cursor: pointer; padding: 4px 8px; border-radius: 8px; }
+      .upd .link:hover { background: rgba(168,199,250,.08); }
+      .upd.note { color: #c4c7c5; }
       .fab { width: 48px; height: 48px; border-radius: 50%; border: 0; background: #333537; color: #e3e3e3; cursor: pointer;
              display: grid; place-items: center; box-shadow: 0 1px 3px rgba(0,0,0,.3); position: relative; }
       .fab:hover { background: #3c3e40; }
@@ -248,20 +254,32 @@
     menu: false,
     order: localStorage.getItem('standup-order') === '1',
     update: null,
+    onDisk: null, // newer version already in the folder, not loaded yet
+    reloaded: false,
     lastSig: '',
     callSeenAt: null,
     present: null,
     starter: null,
   };
 
-  // "Update available" for people who installed from the git folder
+  // Updates for the unpacked install: "Update available" from GitHub, then, once the new files are
+  // in the folder (git pull / new ZIP), a button that reloads the extension (no chrome://extensions needed).
+  const ask = (msg) => new Promise((res) => chrome.runtime.sendMessage(msg, (v) => res(chrome.runtime.lastError ? null : v)));
   try {
     const current = chrome.runtime.getManifest().version;
-    chrome.runtime.sendMessage('latestVersion', (latest) => {
-      if (chrome.runtime.lastError) return;
+    ask('latestVersion').then((latest) => {
       if (R.newerVersion(latest, current)) { ui.update = latest; ui.lastSig = ''; tick(); }
     });
-  } catch { ui.update = globalThis.STANDUP_DEMO_UPDATE || null; } // demo page: no chrome.runtime
+    const checkDisk = async () => {
+      const onDisk = await ask('diskVersion');
+      if (R.newerVersion(onDisk, current) && ui.onDisk !== onDisk) { ui.onDisk = onDisk; ui.lastSig = ''; tick(); }
+    };
+    checkDisk();
+    setInterval(checkDisk, 30 * 1000);
+  } catch { // demo page: no chrome.runtime
+    ui.update = globalThis.STANDUP_DEMO_UPDATE || null;
+    ui.onDisk = globalThis.STANDUP_DEMO_ONDISK || null;
+  }
 
   async function tick() {
     const c = code();
@@ -312,7 +330,7 @@
     const turn = present && me ? R.myTurn(present, me, starter) : null;
     ui.present = present;
     ui.starter = starter;
-    const sig = JSON.stringify([present, me, starter, turn, ui.update, ui.min, ui.menu, ui.order, team && !!team.last, snap && snap.avatars]);
+    const sig = JSON.stringify([present, me, starter, turn, ui.update, ui.onDisk, ui.reloaded, ui.min, ui.menu, ui.order, team && !!team.last, snap && snap.avatars]);
     if (sig === ui.lastSig) return;
     ui.lastSig = sig;
     render(present, me, starter, turn);
@@ -364,10 +382,15 @@
           <span class="grow">${starter ? 'Today’s order' : 'Order A–Z'}</span><span class="cnt">${order.length}</span>
           ${svg(ui.order ? ICON.less : ICON.down, 18)}</button>${items}`;
     }
-    const upd = ui.update
-      ? `<a class="upd" href="https://github.com/ibro-makhmudov/meet-standup-turn#update" target="_blank"
-           title="In the extension folder run git pull, then press ↻ on the extension in chrome://extensions">${svg(ICON.up, 16)}Update ${esc(ui.update)} available</a>`
-      : '';
+    const upd = ui.reloaded
+      ? `<div class="upd note">${svg(ICON.up, 16)}<span>Updated. Refresh this tab to use the new version.</span></div>`
+      : ui.onDisk
+        ? `<div class="upd">${svg(ICON.up, 16)}<span>${esc(ui.onDisk)} downloaded</span>
+             <button class="link" data-a="reload" title="Load the new files (same as ↻ in chrome://extensions)">Reload extension</button></div>`
+        : ui.update
+          ? `<a class="upd" href="https://github.com/ibro-makhmudov/meet-standup-turn#update" target="_blank"
+               title="Get the new files (git pull or the ZIP link), then come back here">${svg(ICON.up, 16)}Update ${esc(ui.update)} available</a>`
+          : '';
 
     wrap.innerHTML = `<div class="card">
         <div class="top">${top}<button class="icon-btn" data-a="min" title="Minimize">${svg(ICON.min)}</button></div>
@@ -395,6 +418,12 @@
       localStorage.setItem('standup-min', ui.min ? '1' : '0');
     } else if (a === 'menu') {
       ui.menu = !ui.menu;
+    } else if (a === 'reload') {
+      ui.reloaded = true;
+      ui.lastSig = '';
+      await tick(); // show the note first: after the reload this script is cut off from the extension
+      chrome.runtime.sendMessage('reloadExtension');
+      return;
     } else if (a === 'order') {
       ui.order = !ui.order;
       localStorage.setItem('standup-order', ui.order ? '1' : '0');

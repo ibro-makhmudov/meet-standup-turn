@@ -109,24 +109,34 @@ Click **–** to shrink the card to a round button; click the button to open it 
 
 ## Update
 
-When a new version is out, the card shows a link:
+When a new version is on GitHub, the card shows:
 
-<img src="docs/update.png" alt="Card with Update 1.2.0 available" width="330">
+<img src="docs/update.png" alt="Card with Update 1.2.1 available" width="330">
 
-Then:
+**1. Get the new files** into the same folder:
 
-1. Get the new files. With git:
-   ```bash
-   cd ~/meet-standup-turn && git pull
-   ```
-   With the ZIP: download [the same link](https://github.com/ibro-makhmudov/meet-standup-turn/archive/refs/heads/main.zip) again and replace the folder contents.
-2. Open `chrome://extensions` and press **↻** on Meet Standup Turn.
-3. Reload the Meet tab.
+- with git:
+  ```bash
+  cd ~/meet-standup-turn && git pull
+  ```
+- without git: download [the ZIP](https://github.com/ibro-makhmudov/meet-standup-turn/archive/refs/heads/main.zip) again
+  and replace the files in your existing folder (keep the folder where it is: Chrome remembers its path).
+
+**2. Click "Reload extension" in the card.** Within half a minute the card notices the new files:
+
+<img src="docs/downloaded.png" alt="Card: 1.2.1 downloaded, Reload extension" width="330">
+
+**3. Refresh the Meet tab.** If you are in a call, do it after the call (refreshing means rejoining).
+
+The button does the same as **↻** on the extension in `chrome://extensions`, so you don't need to open that page.
+(If you prefer it: Chrome doesn't open `chrome://` links from websites, so paste `chrome://extensions` into the address bar.)
+Your saved data (who started, the team) is kept: it lives in Chrome, not in the folder.
 
 ## Questions
 
 **The card doesn't appear.** Reload the Meet tab. The card only shows inside a call, not on the Meet home page
-or the "Ready to join?" screen. If you just installed or updated, check that you pressed ↻ on the extension.
+or the "Ready to join?" screen. If you just replaced the files, the extension must be reloaded too
+("Reload extension" in the card, or ↻ in `chrome://extensions`).
 
 **The People panel flashed when I joined.** That's the extension reading the names. It happens once per call.
 
@@ -158,4 +168,5 @@ Demo URL options: `date=2026-10-13` fakes today, `reset=1` clears saved data, `o
 `lazy=1` renders the list only after People is opened once (like Meet), `chat=1` starts with chat open,
 `people=A,B,C` sets who is in the call, `merged=A,B` groups people under "Merged audio",
 `starter=Name` presets today's starter, `link=abc-defg-hij` pretends to be another meeting link,
-`order=1` opens Today's order, `menu=1`, `min=1`, `update=1.2.0`, `clean=1` for screenshots.
+`order=1` opens Today's order, `menu=1`, `min=1`, `update=1.2.1` (newer version on GitHub),
+`ondisk=1.2.1` (newer files already in the folder), `clean=1` for screenshots.
