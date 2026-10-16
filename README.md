@@ -23,6 +23,7 @@ No account, no setup, no team list. Names come from the call and never leave you
   People who are absent are skipped; days you missed are caught up.
 - **Numbered speaking order** starting with today's first speaker, with you and the person before you marked;
   teammates who aren't in the call are shown greyed in their place.
+- **Who is speaking** (beta): "Anna is speaking · 3 before you", "you're next", and a live marker in the order.
 - **Exceptions**: mark the person leading the meeting as **Speaks last** (never starts, always at the end)
   and guests as **Not in standup** (left out of the order).
 - **One team, many links**: the rotation belongs to the team, not to one Meet link. A new link for the same
@@ -99,6 +100,16 @@ Click **Today's order** to see everyone, numbered, starting with today's first s
 You are highlighted and the person before you is marked. Without a chosen starter it shows the plain A–Z list.
 
 <img src="docs/order.png" alt="Numbered order: 1 Nóra Pap … 8 David Varga (before you), 9 Imre Fekete (You)" width="330">
+
+### Who is speaking (beta)
+
+The card shows who is talking and how many people are left before you; the speaker is marked in Today's order:
+
+<img src="docs/speaking.png" alt="Card: Anna is speaking · 3 before you; Anna marked in Today's order" width="330">
+
+It reads Meet's sound indicator next to each person. In a standup everyone but the speaker is muted, so this works well;
+someone who stays unmuted in a noisy room can be taken for the speaker for a moment. After the speaker stops,
+they stay shown as "spoke last" for a few seconds.
 
 ### Exceptions: the meeting lead, guests
 
@@ -202,6 +213,6 @@ python3 -m http.server 8765   # then open http://localhost:8765/demo/index.html?
 Demo URL options: `date=2026-10-13` fakes today, `reset=1` clears saved data, `open=1` opens People,
 `lazy=1` renders the list only after People is opened once (like Meet), `chat=1` starts with chat open,
 `people=A,B,C` sets who is in the call, `merged=A,B` groups people under "Merged audio",
-`starter=Name` presets today's starter, `link=abc-defg-hij` pretends to be another meeting link,
+`starter=Name` presets today's starter, `talk=Name` makes Name's sound indicator move like in Meet, `link=abc-defg-hij` pretends to be another meeting link,
 `order=1` opens Today's order, `exlast=A&exskip=B` creates a team with these exceptions, `rowmenu=Name` opens ⋮ for Name, `menu=1`, `min=1`, `update=1.2.1` (newer version on GitHub),
 `ondisk=1.2.1` (newer files already in the folder), `clean=1` for screenshots.

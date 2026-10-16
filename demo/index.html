@@ -57,7 +57,13 @@
     // Meet-like re-render: rebuilds all rows whenever someone joins or leaves
     // ?merged=A,B puts those people under a "Merged audio" group row, like Meet's companion devices
     const merged = (params.get('merged') || '').split(',').filter(Boolean);
-    const row = (p) => `<div role="listitem" aria-label="${p}"><span class="av">${p[0]}</span><span class="nm">${p}</span><button data-p="${p}">leave</button></div>`;
+    const row = (p) => `<div role="listitem" aria-label="${p}"><span class="av">${p[0]}</span><span class="nm">${p}</span><span jsname="QgSmzd" class="lvl0"></span><button data-p="${p}">leave</button></div>`;
+    // ?talk=Name: that person's audio indicator changes like Meet's while they speak
+    if (params.get('talk')) setInterval(() => {
+      const el = [...document.querySelectorAll('[role=listitem]')].find((r) => r.getAttribute('aria-label') === params.get('talk'));
+      const ind = el && el.querySelector('[jsname=QgSmzd]');
+      if (ind) ind.className = 'lvl' + Math.floor(Math.random() * 4);
+    }, 150);
     const draw = () => {
       const sorted = [...people].sort((a, b) => a.localeCompare(b, 'en'));
       const group = sorted.filter((p) => merged.includes(p));

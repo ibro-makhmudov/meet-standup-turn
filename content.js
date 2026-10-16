@@ -154,6 +154,49 @@
   pageCss.textContent = `html[data-standup-snap] aside, html[data-standup-snap] [role="complementary"] { opacity: 0 !important; }`;
   document.head.appendChild(pageCss);
 
+  // ---------- who is talking (beta) ----------
+  // Meet's audio level indicator ([jsname="QgSmzd"], in video tiles and in People rows, also while the
+  // panel is closed) changes its class with the voice level and keeps one class in silence. No class names
+  // are relied on: we count changes per person. In a standup everyone but the speaker is muted, so the
+  // speaker is the person whose indicator changes most; an unmuted person with background noise only takes
+  // over when clearly more active than the current speaker.
+  const RATE_MS = 2000;
+  const MIN_CHANGES = 4; // changes within RATE_MS to count as talking
+  const STILL_CURRENT_MS = 15000; // after the speaker stops, they stay "current" for a while (pauses, questions)
+  const activity = new Map(); // name -> change timestamps within RATE_MS
+  let currentSpeaker = null;
+  function talkerOf(el) {
+    const row = el.closest('[role="listitem"][aria-label]');
+    if (row) return row.getAttribute('aria-label').replace(/\s*\((you|te|ön|вы|siz)\)\s*$/i, '').trim();
+    const tile = el.closest('[data-participant-id]');
+    if (!tile || !snap) return null;
+    const text = tile.textContent || '';
+    return snap.names.filter((n) => text.includes(n)).sort((a, b) => b.length - a.length)[0] || null;
+  }
+  const rate = (n, now) => (activity.get(n) || []).filter((t) => now - t < RATE_MS).length;
+  let talkTick = null;
+  new MutationObserver((ms) => {
+    const now = Date.now();
+    let seen = false;
+    for (const m of ms) {
+      if (m.target.getAttribute('jsname') !== 'QgSmzd') continue;
+      const n = talkerOf(m.target);
+      if (!n) continue;
+      activity.set(n, [...(activity.get(n) || []).filter((t) => now - t < RATE_MS), now]);
+      seen = true;
+    }
+    if (seen && !talkTick) talkTick = setTimeout(() => { talkTick = null; tick(); }, 300);
+  }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'] });
+  function speakers(present) {
+    const now = Date.now();
+    const active = (present || []).map((n) => [n, rate(n, now)]).filter(([, r]) => r >= MIN_CHANGES).sort((a, b) => b[1] - a[1]);
+    const curRate = currentSpeaker ? rate(currentSpeaker, now) : 0;
+    if (active[0] && active[0][0] !== currentSpeaker && (curRate < MIN_CHANGES || active[0][1] > curRate * 1.5)) currentSpeaker = active[0][0];
+    const lastSeen = currentSpeaker ? Math.max(0, ...(activity.get(currentSpeaker) || [])) : 0;
+    if (currentSpeaker && (now - lastSeen > STILL_CURRENT_MS || !(present || []).includes(currentSpeaker))) currentSpeaker = null;
+    return { talkingNow: active.map(([n]) => n), current: currentSpeaker };
+  }
+
   // ---------- UI (Meet dark theme, Material 3) ----------
   const ICON = {
     voice: 'M9 13c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4zm6.08-7.95c.84 1.18.84 2.71 0 3.89l1.68 1.69c2.02-2.02 2.02-5.07 0-7.27l-1.68 1.69zM20.07 2l-1.63 1.63c2.77 3.02 2.77 7.56 0 10.74L20.07 16c3.9-3.89 3.91-9.95 0-14z',
@@ -228,6 +271,14 @@
       .order li.grp { height: 28px; padding-left: 42px; font-size: 11px; letter-spacing: .4px; text-transform: uppercase; color: #8e918f; }
       .order li.skipped .nm { color: #8e918f; }
       .order li.away { opacity: .45; }
+      .order li.talking { box-shadow: inset 3px 0 0 #a8c7fa; }
+      .now { display: flex; align-items: center; gap: 6px; margin: -6px 12px 10px 64px; font-size: 12px; line-height: 16px; color: #c4c7c5; }
+      .now b { font-weight: 500; color: #a8c7fa; }
+      .now.next { color: #a8c7fa; }
+      .eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 12px; flex: none; }
+      .eq i { width: 3px; border-radius: 2px; background: #a8c7fa; animation: eq .9s ease-in-out infinite; }
+      .eq i:nth-child(2) { animation-delay: -.3s; } .eq i:nth-child(3) { animation-delay: -.6s; }
+      @keyframes eq { 0%, 100% { height: 3px; } 50% { height: 12px; } }
       .order li.away .tag { color: #c4c7c5; }
       .order li.opts { height: auto; flex-wrap: wrap; gap: 6px; padding: 2px 12px 8px 42px; }
       .chipbtn { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 10px; border-radius: 8px;
@@ -347,10 +398,11 @@
     const turn = present && me ? R.myTurn(present, me, starter, ex) : null;
     ui.present = present;
     ui.starter = starter;
-    const sig = JSON.stringify([present, me, starter, turn, ex, ui.update, ui.onDisk, ui.reloaded, ui.min, ui.menu, ui.order, ui.rowMenu, team && !!team.last, snap && snap.avatars]);
+    const talk = speakers(present);
+    const sig = JSON.stringify([present, me, starter, turn, ex, talk, ui.update, ui.onDisk, ui.reloaded, ui.min, ui.menu, ui.order, ui.rowMenu, team && !!team.last, snap && snap.avatars]);
     if (sig === ui.lastSig) return;
     ui.lastSig = sig;
-    render(present, me, starter, turn, ex);
+    render(present, me, starter, turn, ex, talk);
   }
 
   // Exceptions of the team: { last: [...], skip: [...] } (see R.speakingOrder)
@@ -365,7 +417,7 @@
     await saveGroups();
   }
 
-  function render(present, me, starter, turn, ex) {
+  function render(present, me, starter, turn, ex, talk) {
     if (ui.min) {
       wrap.innerHTML = `<button class="fab" data-a="expand" title="${esc(turn && turn.before ? 'You speak after ' + turn.before : 'Standup turn')}">
         ${svg(ICON.voice, 22)}${ui.update ? '<span class="dot"></span>' : ''}</button>`;
@@ -390,6 +442,17 @@
       top = `${avatar(turn.before, avatars)}
         <div class="txt"><div class="lbl">You speak after</div><div class="name" title="${esc(turn.before)}">${esc(turn.before)}</div></div>
         ${turn.position ? `<span class="pos" title="Your place in today's order">${turn.position} of ${turn.total}</span>` : ''}`;
+    }
+    // live progress: who is speaking and how many are left before you
+    let now = '';
+    if (present && turn && talk.current) {
+      const order = R.speakingOrder(present, starter, ex);
+      const cur = order.indexOf(talk.current), mine = order.indexOf(me);
+      const live = talk.talkingNow.includes(talk.current);
+      const who = talk.current === me ? 'You’re speaking' : `${esc(talk.current.split(' ')[0])} ${live ? 'is speaking' : 'spoke last'}`;
+      let left = '';
+      if (talk.current !== me && cur > -1 && mine > cur) left = mine - cur === 1 ? ' · <b>you’re next</b>' : ` · ${mine - cur - 1} before you`;
+      now = `<div class="now${left.includes('next') ? ' next' : ''}">${live ? '<span class="eq"><i></i><i></i><i></i></span>' : ''}${who}${left}</div>`;
     }
 
     let row = '';
@@ -420,8 +483,9 @@
       const items = !ui.order ? '' : `<ol class="order">${full.map((n, i) => {
           const away = !present.includes(n);
           return `${i === firstEnd ? '<li class="grp">At the end</li>' : ''}
-          <li class="${n === me ? 'me' : ''}${n === before ? ' before' : ''}${away ? ' away' : ''}" ${away ? 'title="Not in the call"' : ''}>
+          <li class="${n === me ? 'me' : ''}${n === before ? ' before' : ''}${away ? ' away' : ''}${talk.talkingNow.includes(n) ? ' talking' : ''}" ${away ? 'title="Not in the call"' : ''}>
             <span class="num">${away ? '' : ++num}</span>${avatar(n, avatars, 'sm')}<span class="nm" title="${esc(n)}">${esc(n)}</span>
+            ${talk.talkingNow.includes(n) ? '<span class="eq" title="Speaking"><i></i><i></i><i></i></span>' : ''}
             ${n === me ? '<span class="tag">You</span>' : n === before ? '<span class="tag">before you</span>' : away ? '<span class="tag">not here</span>' : ''}${rowMenuBtn(n)}</li>${opts(n)}`;
         }).join('')}
           ${skipped.length ? '<li class="grp">Not in standup</li>' + skipped.map((n) => `
@@ -443,7 +507,7 @@
           : '';
 
     wrap.innerHTML = `<div class="card">
-        <div class="top">${top}<button class="icon-btn" data-a="min" title="Minimize">${svg(ICON.min)}</button></div>
+        <div class="top">${top}<button class="icon-btn" data-a="min" title="Minimize">${svg(ICON.min)}</button></div>${now}
         ${row}${upd}</div>`;
     const sel = root.querySelector('.menu .sel');
     if (sel) sel.parentElement.scrollTop = sel.offsetTop - 8;
