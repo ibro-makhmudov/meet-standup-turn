@@ -163,6 +163,7 @@
     flag: 'M14.4 6 14 4H5v17h2v-7h5.6l.4 2h7V6z',
     up: 'M4 12l1.41 1.41L11 7.83V20h2V7.83l5.58 5.59L20 12l-8-8-8 8z',
     less: 'M12 8l-6 6 1.41 1.41L12 10.83l4.59 4.58L18 14z',
+    more: 'M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z',
     list: 'M2 17h2v.5H3v1h1v.5H2v1h3v-4H2v1zm1-9h1V4H2v1h1v3zm-1 3h1.8L2 13.1v.9h3v-1H3.2L5 10.9V10H2v1zm5-6v2h14V5H7zm0 14h14v-2H7v2zm0-6h14v-2H7v2z',
   };
   const svg = (d, size = 20) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="${d}"/></svg>`;
@@ -219,6 +220,20 @@
       .order li.me { background: #004a77; color: #c2e7ff; }
       .order li.me .num { color: #c2e7ff; }
       .order .tag { flex: none; font-size: 11px; color: #a8c7fa; }
+      .order .rb { flex: none; width: 28px; height: 28px; margin-right: -6px; border-radius: 50%; border: 0; background: none; color: #c4c7c5;
+                   display: grid; place-items: center; cursor: pointer; visibility: hidden; }
+      .order li:hover .rb, .order .rb:focus-visible { visibility: visible; }
+      .order .rb:hover { background: rgba(227,227,227,.08); }
+      .order li.me .rb { color: #c2e7ff; }
+      .order li.grp { height: 28px; padding-left: 42px; font-size: 11px; letter-spacing: .4px; text-transform: uppercase; color: #8e918f; }
+      .order li.skipped .nm { color: #8e918f; }
+      .order li.away { opacity: .45; }
+      .order li.away .tag { color: #c4c7c5; }
+      .order li.opts { height: auto; flex-wrap: wrap; gap: 6px; padding: 2px 12px 8px 42px; }
+      .chipbtn { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 10px; border-radius: 8px;
+                 border: 1px solid #8e918f; background: none; color: #e3e3e3; font: 500 12px "Google Sans", Roboto, sans-serif; cursor: pointer; }
+      .chipbtn:hover { background: rgba(227,227,227,.08); }
+      .chipbtn.on { background: #004a77; border-color: #004a77; color: #c2e7ff; }
       .order li.me .tag { color: #c2e7ff; }
       .upd { display: flex; align-items: center; gap: 6px; padding: 0 12px 12px; color: #a8c7fa; font-size: 12px; text-decoration: none; }
       a.upd:hover { text-decoration: underline; }
@@ -252,6 +267,7 @@
   const ui = {
     min: localStorage.getItem('standup-min') === '1',
     menu: false,
+    rowMenu: null, // name whose exception options are open in Today's order
     order: localStorage.getItem('standup-order') === '1',
     update: null,
     onDisk: null, // newer version already in the folder, not loaded yet
@@ -320,23 +336,36 @@
       await saveGroups();
     }
 
-    const starter = R.starterToday(team && team.last, t, team ? team.known : [], present);
+    const ex = exOf(team);
+    const starter = R.starterToday(team && team.last, t, team ? team.known : [], present, ex);
     if (present && present.length >= 3 && !ui.callSeenAt) ui.callSeenAt = Date.now();
     if (starter && team.last.date < t && ui.callSeenAt && Date.now() - ui.callSeenAt >= AUTO_SAVE_MS) {
       team.last = { date: t, starter };
       await saveGroups();
     }
 
-    const turn = present && me ? R.myTurn(present, me, starter) : null;
+    const turn = present && me ? R.myTurn(present, me, starter, ex) : null;
     ui.present = present;
     ui.starter = starter;
-    const sig = JSON.stringify([present, me, starter, turn, ui.update, ui.onDisk, ui.reloaded, ui.min, ui.menu, ui.order, team && !!team.last, snap && snap.avatars]);
+    const sig = JSON.stringify([present, me, starter, turn, ex, ui.update, ui.onDisk, ui.reloaded, ui.min, ui.menu, ui.order, ui.rowMenu, team && !!team.last, snap && snap.avatars]);
     if (sig === ui.lastSig) return;
     ui.lastSig = sig;
-    render(present, me, starter, turn);
+    render(present, me, starter, turn, ex);
   }
 
-  function render(present, me, starter, turn) {
+  // Exceptions of the team: { last: [...], skip: [...] } (see R.speakingOrder)
+  const exOf = (g) => ({ last: (g && g.ex && g.ex.last) || [], skip: (g && g.ex && g.ex.skip) || [] });
+  async function setException(name, kind) { // kind: 'last' | 'skip' | null (back to normal)
+    if (!team) newTeam(code());
+    const ex = exOf(team);
+    ex.last = ex.last.filter((n) => n !== name);
+    ex.skip = ex.skip.filter((n) => n !== name);
+    if (kind) ex[kind].push(name);
+    team.ex = ex;
+    await saveGroups();
+  }
+
+  function render(present, me, starter, turn, ex) {
     if (ui.min) {
       wrap.innerHTML = `<button class="fab" data-a="expand" title="${esc(turn && turn.before ? 'You speak after ' + turn.before : 'Standup turn')}">
         ${svg(ICON.voice, 22)}${ui.update ? '<span class="dot"></span>' : ''}</button>`;
@@ -348,8 +377,12 @@
       top = `<div class="av" style="background:#333537"></div>
         <div class="txt"><div class="lbl">Finding your turn…</div><div class="shimmer" style="width:140px;margin-top:6px"></div></div>`;
     } else if (!turn) {
+      const msg = !me ? 'Can’t find you in the call' : ex.skip.includes(me) ? 'You’re not in the order' : 'Not enough people yet';
       top = `<div class="av" style="background:#333537;color:#c4c7c5">${svg(ICON.voice)}</div>
-        <div class="txt"><div class="lbl">Standup turn</div><div class="name">${me ? 'Not enough people yet' : 'Can’t find you in the call'}</div></div>`;
+        <div class="txt"><div class="lbl">Standup turn</div><div class="name">${msg}</div></div>`;
+    } else if (!turn.before && turn.end) {
+      top = `${avatar(me, avatars, 'me')}
+        <div class="txt"><div class="lbl">Your turn</div><div class="name">You speak at the end</div></div>`;
     } else if (!turn.before) {
       top = `${avatar(me, avatars, 'me')}
         <div class="txt"><div class="lbl">Your turn</div><div class="name">You start today</div></div>`;
@@ -362,7 +395,7 @@
     let row = '';
     if (present) {
       const menu = ui.menu ? `<div class="menu" role="menu">
-          ${present.map((n) => `<div class="mi${n === starter ? ' sel' : ''}" role="menuitem" data-a="pick" data-n="${esc(n)}"><span class="ck">${n === starter ? svg(ICON.check) : ''}</span>${esc(n)}</div>`).join('')}
+          ${present.filter((n) => !ex.last.includes(n) && !ex.skip.includes(n)).map((n) => `<div class="mi${n === starter ? ' sel' : ''}" role="menuitem" data-a="pick" data-n="${esc(n)}"><span class="ck">${n === starter ? svg(ICON.check) : ''}</span>${esc(n)}</div>`).join('')}
           ${team && team.last ? `<div class="msep"></div><div class="mi muted" role="menuitem" data-a="clear"><span class="ck"></span>Don’t track who starts</div>` : ''}
         </div>` : '';
       row = `<div class="sep"></div>
@@ -370,13 +403,30 @@
           <button class="dd ${starter ? '' : 'empty'}" data-a="menu" title="Pick who starts today; the next days follow alphabetically">
             <span>${starter ? esc(starter) : 'Choose'}</span>${svg(ICON.down, 18)}</button>${menu}</div>`;
 
-      // numbered speaking order: starter first (A–Z when nobody is chosen), you highlighted
-      const order = R.speakingOrder(present, starter);
+      // numbered speaking order: starter first (A–Z when nobody is chosen), "last" people at the end,
+      // people "not in standup" listed apart; ⋮ on a row sets these exceptions
+      const order = R.speakingOrder(present, starter, ex);
+      const skipped = present.filter((n) => ex.skip.includes(n));
+      // teammates who aren't in the call: shown greyed in their place, without a number
+      const absent = team ? team.known.filter((n) => !present.includes(n) && !ex.skip.includes(n)) : [];
+      const full = absent.length ? R.speakingOrder([...present, ...absent], starter, ex) : order;
+      let num = 0;
       const before = turn && turn.before;
-      const items = ui.order ? `<ol class="order">${order.map((n, i) => `
-          <li class="${n === me ? 'me' : ''}${n === before ? ' before' : ''}">
-            <span class="num">${i + 1}</span>${avatar(n, avatars, 'sm')}<span class="nm" title="${esc(n)}">${esc(n)}</span>
-            ${n === me ? '<span class="tag">You</span>' : n === before ? '<span class="tag">before you</span>' : ''}</li>`).join('')}</ol>` : '';
+      const opts = (n) => ui.rowMenu !== n ? '' : `<li class="opts">
+          <button class="chipbtn${ex.last.includes(n) ? ' on' : ''}" data-a="ex" data-k="last" data-n="${esc(n)}" title="Leads the meeting or always goes last; never starts">${ex.last.includes(n) ? svg(ICON.check, 16) : ''}Speaks last</button>
+          <button class="chipbtn${ex.skip.includes(n) ? ' on' : ''}" data-a="ex" data-k="skip" data-n="${esc(n)}" title="Guest or observer: left out of the order">${ex.skip.includes(n) ? svg(ICON.check, 16) : ''}Not in standup</button></li>`;
+      const rowMenuBtn = (n) => `<button class="rb" data-a="rowmenu" data-n="${esc(n)}" title="Exceptions for ${esc(n)}">${svg(ICON.more, 18)}</button>`;
+      const firstEnd = full.findIndex((n) => ex.last.includes(n));
+      const items = !ui.order ? '' : `<ol class="order">${full.map((n, i) => {
+          const away = !present.includes(n);
+          return `${i === firstEnd ? '<li class="grp">At the end</li>' : ''}
+          <li class="${n === me ? 'me' : ''}${n === before ? ' before' : ''}${away ? ' away' : ''}" ${away ? 'title="Not in the call"' : ''}>
+            <span class="num">${away ? '' : ++num}</span>${avatar(n, avatars, 'sm')}<span class="nm" title="${esc(n)}">${esc(n)}</span>
+            ${n === me ? '<span class="tag">You</span>' : n === before ? '<span class="tag">before you</span>' : away ? '<span class="tag">not here</span>' : ''}${rowMenuBtn(n)}</li>${opts(n)}`;
+        }).join('')}
+          ${skipped.length ? '<li class="grp">Not in standup</li>' + skipped.map((n) => `
+          <li class="skipped"><span class="num"></span>${avatar(n, avatars, 'sm')}<span class="nm" title="${esc(n)}">${esc(n)}</span>${rowMenuBtn(n)}</li>${opts(n)}`).join('') : ''}
+        </ol>`;
       row += `<div class="sep"></div>
         <button class="row toggle" data-a="order" aria-expanded="${ui.order}">${svg(ICON.list, 18)}
           <span class="grow">${starter ? 'Today’s order' : 'Order A–Z'}</span><span class="cnt">${order.length}</span>
@@ -424,6 +474,12 @@
       await tick(); // show the note first: after the reload this script is cut off from the extension
       chrome.runtime.sendMessage('reloadExtension');
       return;
+    } else if (a === 'rowmenu') {
+      ui.rowMenu = ui.rowMenu === el.dataset.n ? null : el.dataset.n;
+    } else if (a === 'ex') {
+      const n = el.dataset.n, k = el.dataset.k;
+      await setException(n, exOf(team)[k].includes(n) ? null : k);
+      ui.rowMenu = null;
     } else if (a === 'order') {
       ui.order = !ui.order;
       localStorage.setItem('standup-order', ui.order ? '1' : '0');

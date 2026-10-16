@@ -21,7 +21,10 @@ No account, no setup, no team list. Names come from the call and never leave you
 - **Updates live** when people join or leave (late joiners, two people with similar names, someone dropping out).
 - **Who starts today** (optional): pick once, then it rotates alphabetically every weekday by itself.
   People who are absent are skipped; days you missed are caught up.
-- **Numbered speaking order** starting with today's first speaker, with you and the person before you marked.
+- **Numbered speaking order** starting with today's first speaker, with you and the person before you marked;
+  teammates who aren't in the call are shown greyed in their place.
+- **Exceptions**: mark the person leading the meeting as **Speaks last** (never starts, always at the end)
+  and guests as **Not in standup** (left out of the order).
 - **One team, many links**: the rotation belongs to the team, not to one Meet link. A new link for the same
   standup is recognised by who is in the call.
 - Handles Meet's quirks: your own name pinned on top, "Merged audio" groups from meeting rooms,
@@ -97,6 +100,21 @@ You are highlighted and the person before you is marked. Without a chosen starte
 
 <img src="docs/order.png" alt="Numbered order: 1 Nóra Pap … 8 David Varga (before you), 9 Imre Fekete (You)" width="330">
 
+### Exceptions: the meeting lead, guests
+
+Not everyone follows the alphabet. In **Today's order**, hover a person and click **⋮**:
+
+- **Speaks last**: for whoever leads the meeting or always goes last. They never start, the rotation skips them,
+  and they are listed under **At the end**.
+- **Not in standup**: for guests and observers. They are left out of the order (listed under **Not in standup**).
+
+Click the same button again to undo. Exceptions belong to the team and are kept for the next days; you can also
+remove them in the toolbar window. They are saved in your browser, so each teammate sets them once.
+
+Teammates who were in earlier calls but aren't here today are shown greyed with "not here", in the place they would have.
+
+<img src="docs/exceptions.png" alt="Today's order with two people not here, Zoltán Fehér at the end, Lili Simon not in standup, and the ⋮ options open for Nóra Pap" width="330">
+
 ### Several meeting links for one standup
 
 The starter is remembered for the **team**, not for one link. When you join a link the extension hasn't seen,
@@ -153,7 +171,8 @@ or the "Ready to join?" screen. If you just replaced the files, the extension mu
 
 **The People panel flashed when I joined.** That's the extension reading the names. It happens once per call.
 
-**Someone is in the order who doesn't do standup (a guest).** Everyone in the call is counted for now.
+**Someone is in the order who doesn't do standup (a guest), or the lead always goes last.** Use the exceptions:
+**⋮** next to the person in Today's order → **Not in standup** or **Speaks last**.
 
 **"Merged audio".** People joining from a meeting room device are grouped by Meet; they are counted as normal people.
 
@@ -184,5 +203,5 @@ Demo URL options: `date=2026-10-13` fakes today, `reset=1` clears saved data, `o
 `lazy=1` renders the list only after People is opened once (like Meet), `chat=1` starts with chat open,
 `people=A,B,C` sets who is in the call, `merged=A,B` groups people under "Merged audio",
 `starter=Name` presets today's starter, `link=abc-defg-hij` pretends to be another meeting link,
-`order=1` opens Today's order, `menu=1`, `min=1`, `update=1.2.1` (newer version on GitHub),
+`order=1` opens Today's order, `exlast=A&exskip=B` creates a team with these exceptions, `rowmenu=Name` opens ⋮ for Name, `menu=1`, `min=1`, `update=1.2.1` (newer version on GitHub),
 `ondisk=1.2.1` (newer files already in the folder), `clean=1` for screenshots.

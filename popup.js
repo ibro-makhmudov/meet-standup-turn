@@ -23,7 +23,7 @@ const store = {
 };
 function demoData() {
   const known = ['Ádám Kovács', 'Anna Tóth', 'Balázs Nagy', 'Dávid Szabó', 'David Varga', 'Imre Fekete', 'Krisztina Hegedűs', 'Lili Simon', 'Márk Molnár', 'Nóra Pap', 'Péter Lakatos'];
-  return { me: 'Imre Fekete', groups: [{ id: 'd', codes: ['abc-defg-hij', 'xyz-wxyz-xyz'], known, last: { date: R.ymd(new Date()), starter: 'Nóra Pap' }, seen: R.ymd(new Date()) }] };
+  return { me: 'Imre Fekete', groups: [{ id: 'd', codes: ['abc-defg-hij', 'xyz-wxyz-xyz'], known: [...known, 'Zoltán Fehér'], ex: { last: ['Zoltán Fehér'], skip: [] }, last: { date: R.ymd(new Date()), starter: 'Nóra Pap' }, seen: R.ymd(new Date()) }] };
 }
 
 const ago = (t) => {
@@ -61,10 +61,13 @@ function renderUpdate(st, checking) {
 
 function teamCard(g, today) {
   const nextDay = (() => { let d = R.addDays(today, 1); while (!R.isWeekday(d)) d = R.addDays(d, 1); return d; })();
-  const todays = R.starterToday(g.last, today, g.known, null);
+  const ex = { last: (g.ex && g.ex.last) || [], skip: (g.ex && g.ex.skip) || [] };
+  const todays = R.starterToday(g.last, today, g.known, null, ex);
   const next = todays && R.isWeekday(today)
-    ? R.starterToday({ date: today, starter: todays }, nextDay, g.known, null)
-    : R.starterToday(g.last, nextDay, g.known, null);
+    ? R.starterToday({ date: today, starter: todays }, nextDay, g.known, null, ex)
+    : R.starterToday(g.last, nextDay, g.known, null, ex);
+  const exRow = (label, kind) => ex[kind].length
+    ? `<dt>${label}</dt><dd class="exl">${ex[kind].map((n) => `<span class="exn">${esc(n)}<button class="x" data-a="unex" data-n="${esc(n)}" title="Back to the normal order">✕</button></span>`).join('')}</dd>` : '';
   const recorded = g.last && g.last.date === today;
   const starterRows = g.last
     ? `<dt>${R.isWeekday(today) ? 'Today' : fmt(today)}</dt><dd title="${recorded ? 'Picked or saved today' : 'Worked out from ' + esc(fmt(g.last.date))}">${esc(todays || '—')}</dd>
@@ -72,7 +75,7 @@ function teamCard(g, today) {
     : `<dt>Who starts</dt><dd style="font-weight:400">not tracked · pick it in the Meet card</dd>`;
   return `<div class="box team" data-id="${esc(g.id)}">
       <div class="row"><span class="grow title">Standup · ${g.known.length} people</span><span class="meta">${g.seen ? 'last call ' + esc(fmt(g.seen)) : ''}</span></div>
-      <dl class="kv">${starterRows}</dl>
+      <dl class="kv">${starterRows}${exRow('Speaks last', 'last')}${exRow('Not in standup', 'skip')}</dl>
       <div class="chips">${g.codes.map((c) => `<a class="chip" href="https://meet.google.com/${esc(c)}" target="_blank" title="Open this Meet link">${esc(c)}</a>`).join('')}</div>
       <details><summary>People seen (${g.known.length})</summary><p>${g.known.map(esc).join(', ')}</p></details>
       <div class="actions">
@@ -100,6 +103,10 @@ $('teams').addEventListener('click', async (e) => {
   const g = groups.find((x) => x.id === id);
   if (!g) return;
   if (b.dataset.a === 'clear') g.last = null;
+  if (b.dataset.a === 'unex' && g.ex) {
+    g.ex.last = (g.ex.last || []).filter((n) => n !== b.dataset.n);
+    g.ex.skip = (g.ex.skip || []).filter((n) => n !== b.dataset.n);
+  }
   if (b.dataset.a === 'forget' && !confirm('Forget this standup? Who started and the people seen will be removed.')) return;
   await store.set({ groups: b.dataset.a === 'forget' ? groups.filter((x) => x.id !== id) : groups });
   renderTeams();

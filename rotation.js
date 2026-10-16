@@ -31,42 +31,57 @@
     return null;
   }
 
-  // Today's speaking order: alphabetical, starting with the starter (or A–Z without one).
-  function speakingOrder(present, starter) {
-    const list = sortNames(present);
-    const s = starter ? list.indexOf(starter) : -1;
-    return s > 0 ? list.slice(s).concat(list.slice(0, s)) : list;
+  // Exceptions per team: ex = { last: [names], skip: [names] }
+  // - last: speaks at the end (e.g. the person leading the meeting), never in the starter rotation
+  // - skip: not part of the standup at all (guests, observers)
+  const exLast = (ex) => (ex && ex.last) || [];
+  const exSkip = (ex) => (ex && ex.skip) || [];
+
+  // Today's speaking order: alphabetical starting with the starter (A–Z without one), "last" people at the end.
+  function speakingOrder(present, starter, ex) {
+    const all = sortNames(present).filter((n) => !exSkip(ex).includes(n));
+    const regular = all.filter((n) => !exLast(ex).includes(n));
+    const enders = all.filter((n) => exLast(ex).includes(n));
+    const s = starter ? regular.indexOf(starter) : -1;
+    return (s > 0 ? regular.slice(s).concat(regular.slice(0, s)) : regular).concat(enders);
   }
 
   // present: names in the call (me included). starter: optional.
-  // -> { before, position, total } ; before === null means I go first.
-  function myTurn(present, me, starter) {
-    const list = sortNames(present);
-    const total = list.length;
-    if (!list.includes(me) || total < 2) return null;
-    if (starter && list.includes(starter)) {
-      const order = speakingOrder(list, starter);
-      const pos = order.indexOf(me);
-      return { before: pos === 0 ? null : order[pos - 1], position: pos + 1, total };
-    }
-    const idx = list.indexOf(me);
-    return { before: list[(idx - 1 + total) % total], position: null, total };
+  // -> { before, position, total, end } ; before === null: I go first, or (end) I'm first of the "last" people
+  //    and who is before me depends on today's starter; null result: I'm not in the order.
+  function myTurn(present, me, starter, ex) {
+    const order = speakingOrder(present, starter, ex);
+    const total = order.length;
+    const pos = order.indexOf(me);
+    if (pos === -1 || total < 2) return null;
+    const regular = order.filter((n) => !exLast(ex).includes(n));
+    const known = !!starter && regular.includes(starter);
+    const end = exLast(ex).includes(me);
+    if (known) return { before: pos === 0 ? null : order[pos - 1], position: pos + 1, total, end };
+    if (end) return { before: pos === regular.length ? null : order[pos - 1], position: null, total, end };
+    const i = regular.indexOf(me);
+    return regular.length < 2 ? { before: null, position: null, total, end }
+      : { before: regular[(i - 1 + regular.length) % regular.length], position: null, total, end };
   }
 
   // last: { date: 'YYYY-MM-DD', starter } — the latest known starter.
+  // ex: exceptions (see above); people in it never start.
   // known: everyone ever seen in this meeting (used to step over days you missed).
   // present: names in the call now, or null if unknown.
-  function starterToday(last, today, known, present) {
+  function starterToday(last, today, known, present, ex) {
     if (!last || !last.starter) return null;
-    if (last.date >= today) return last.starter;
-    const list = sortNames([...(known || []), ...(present || []), last.starter]);
+    const out = new Set([...exLast(ex), ...exSkip(ex)]);
+    const here = present ? new Set(present) : null;
+    const ok = (n) => !here || here.has(n);
+    // only people in the rotation (exceptions never start); the last starter may be gone from it
+    const list = sortNames([...(known || []), ...(present || [])]).filter((n) => !out.has(n));
+    if (last.date >= today) return out.has(last.starter) ? nextAfter(list, last.starter, ok) : last.starter;
     let cur = last.starter;
     // standup days you were not there for: assume everyone was there
     for (let d = addDays(last.date, 1); d < today; d = addDays(d, 1)) {
-      if (isWeekday(d)) cur = nextAfter(list, cur);
+      if (isWeekday(d)) cur = nextAfter(list, cur) || cur;
     }
-    const here = present ? new Set(present) : null;
-    return nextAfter(list, cur, (n) => !here || here.has(n));
+    return nextAfter(list, cur, ok);
   }
 
   // '1.0.10' > '1.0.9'
@@ -108,6 +123,7 @@
       if (!t) { out.push({ ...g, codes: [...g.codes], known: [...g.known] }); continue; }
       t.codes = [...new Set([...t.codes, ...g.codes])];
       t.known = sortNames([...t.known, ...g.known]);
+      if (g.ex) t.ex = { last: [...new Set([...exLast(t.ex), ...exLast(g.ex)])], skip: [...new Set([...exSkip(t.ex), ...exSkip(g.ex)])] };
       if (g.last && (!t.last || g.last.date > t.last.date)) t.last = g.last;
       if ((g.seen || '') > (t.seen || '')) t.seen = g.seen;
     }

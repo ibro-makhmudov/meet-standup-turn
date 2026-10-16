@@ -14,15 +14,15 @@ test('alphabetical order handles accents like Meet does', () => {
 });
 
 test('my turn: right after the person alphabetically before me', () => {
-  assert.deepEqual(R.myTurn(TEAM, ME, null), { before: 'David Varga', position: null, total: 11 });
+  assert.deepEqual(R.myTurn(TEAM, ME, null), { before: 'David Varga', position: null, total: 11, end: false });
   assert.equal(R.myTurn(without('David Varga'), ME, null).before, 'Dávid Szabó');
 });
 
 test('my turn with a known starter gives my position', () => {
-  assert.deepEqual(R.myTurn(TEAM, ME, 'Nóra Pap'), { before: 'David Varga', position: 8, total: 11 });
-  assert.deepEqual(R.myTurn(TEAM, ME, ME), { before: null, position: 1, total: 11 });
+  assert.deepEqual(R.myTurn(TEAM, ME, 'Nóra Pap'), { before: 'David Varga', position: 8, total: 11, end: false });
+  assert.deepEqual(R.myTurn(TEAM, ME, ME), { before: null, position: 1, total: 11, end: false });
   // the one after me starts: I am last
-  assert.deepEqual(R.myTurn(TEAM, ME, 'Krisztina Hegedűs'), { before: 'David Varga', position: 11, total: 11 });
+  assert.deepEqual(R.myTurn(TEAM, ME, 'Krisztina Hegedűs'), { before: 'David Varga', position: 11, total: 11, end: false });
 });
 
 test('first alphabetically speaks after the last one (wrap around)', () => {
@@ -92,4 +92,36 @@ test('groups of the same team are merged, keeping the latest starter', () => {
   assert.deepEqual(out[0].codes, ['l1', 'l2']);
   assert.deepEqual(out[0].last, { date: '2026-10-15', starter: 'Nóra Pap' });
   assert.equal(out[0].seen, '2026-10-15');
+});
+
+test('the meeting lead speaks last and never starts', () => {
+  const LEAD = 'Zoltán Fehér'; // after Péter alphabetically
+  const call = [...TEAM, LEAD];
+  const last = { date: '2026-10-15', starter: 'Péter Lakatos' };
+  assert.equal(R.starterToday(last, '2026-10-16', call, call), LEAD); // without the exception
+  const ex = { last: [LEAD], skip: [] };
+  assert.equal(R.starterToday(last, '2026-10-16', call, call, ex), 'Ádám Kovács');
+  const order = R.speakingOrder(call, 'Ádám Kovács', ex);
+  assert.equal(order[0], 'Ádám Kovács');
+  assert.equal(order.at(-1), LEAD);
+  assert.deepEqual(R.myTurn(call, LEAD, 'Ádám Kovács', ex), { before: 'Péter Lakatos', position: 12, total: 12, end: true });
+  // without a starter the lead still knows they are at the end
+  assert.deepEqual(R.myTurn(call, LEAD, null, ex), { before: null, position: null, total: 12, end: true });
+  // a starter saved today who is then marked "last" hands over to the next person
+  assert.equal(R.starterToday({ date: '2026-10-16', starter: LEAD }, '2026-10-16', call, call, ex), 'Ádám Kovács');
+});
+
+test('people not in the standup are left out of the order', () => {
+  const ex = { last: [], skip: ['Nóra Pap'] };
+  assert.equal(R.speakingOrder(TEAM, null, ex).includes('Nóra Pap'), false);
+  assert.equal(R.myTurn(TEAM, 'Nóra Pap', null, ex), null);
+  // Nóra would start after Márk; skipped, so Péter does
+  assert.equal(R.starterToday({ date: '2026-10-15', starter: 'Márk Molnár' }, '2026-10-16', TEAM, TEAM, ex), 'Péter Lakatos');
+  assert.equal(R.myTurn(TEAM, 'Péter Lakatos', null, ex).before, 'Márk Molnár');
+});
+
+test('exceptions are kept when teams merge', () => {
+  const a = { id: 'a', codes: ['l1'], known: TEAM, ex: { last: ['Nóra Pap'], skip: [] } };
+  const b = { id: 'b', codes: ['l2'], known: TEAM, ex: { last: [], skip: ['Guest'] } };
+  assert.deepEqual(R.mergeGroups([a, b])[0].ex, { last: ['Nóra Pap'], skip: ['Guest'] });
 });

@@ -54,6 +54,10 @@
     .kv { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; margin: 10px 0 6px; font-size: 13px; }
     .kv dt { color: var(--variant); }
     .kv dd { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .kv dd.exl { white-space: normal; display: flex; flex-wrap: wrap; gap: 4px; font-weight: 500; }
+    .exn { display: inline-flex; align-items: center; gap: 2px; }
+    .exn .x { border: 0; background: none; color: var(--variant); cursor: pointer; font-size: 11px; padding: 0 4px; border-radius: 6px; }
+    .exn .x:hover { background: var(--container-high); color: var(--on-surface); }
     .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
     .chip { font-size: 12px; line-height: 16px; padding: 4px 10px; border-radius: 8px; border: 1px solid var(--outline); color: var(--on-surface); }
     a.chip:hover { background: var(--container-high); text-decoration: none; }
