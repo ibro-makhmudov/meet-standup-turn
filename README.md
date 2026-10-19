@@ -72,7 +72,7 @@ Don't delete or move the folder: Chrome runs the extension from it.
 That's all you need: when David finishes, it's you. The card updates when people join or leave.
 
 To read the names, the extension opens Meet's People panel for a moment when you join
-(you may see it flash once) and closes it again. It never does this while chat or another side panel is open.
+(you may see it flash once) and closes it again. That happens at most once per call: Meet keeps the list up to date in the page afterwards. It never does this while chat or another side panel is open.
 
 ### Who starts today (optional)
 

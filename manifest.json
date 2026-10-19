@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Meet Standup Turn",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "description": "Google Meet standup in alphabetical order: shows after whom you speak, and optionally who starts today.",
   "icons": {
     "16": "icons/icon16.png",

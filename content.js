@@ -72,12 +72,6 @@
     return [...document.querySelectorAll('[role="button"], button')]
       .find((b) => !host.contains(b) && PEOPLE.test(accName(b)));
   }
-  function peopleCount() {
-    const b = peopleButton();
-    const m = b && (b.textContent || '').match(/\d+/);
-    return m ? +m[0] : null;
-  }
-
   // Participant rows. Meet keeps the list in the page after the People panel was opened once,
   // also while the panel is closed, so hidden rows are read too. Group rows like "Merged audio"
   // contain the real people as nested rows, so rows with nested rows are skipped.
@@ -93,7 +87,7 @@
     let me = null, count = 0;
     for (const el of rows()) {
       const label = el.getAttribute('aria-label').trim();
-      const name = label.replace(/\s*\((you|te|ön|вы|siz)\)\s*$/i, '').trim();
+      const name = label.replace(/\s*\((you|te|ön|вы|siz)\)\s*$/i, '').replace(/\s*\((presenting|presentation|prezent)[^)]*\)\s*$/i, '').trim();
       if (!name || name.length > 80) continue;
       names.push(name);
       count++;
@@ -114,7 +108,6 @@
   let snapping = false;
   let lastSnapAt = 0;
   let snapFails = 0; // People panel did not open: retry slowly, give up after 3
-  let snapCount = null; // people count when we last opened the panel
 
   function takeList(list) {
     snap = list;
@@ -127,7 +120,6 @@
     if (!btn || snapping) return;
     snapping = true;
     lastSnapAt = Date.now();
-    snapCount = peopleCount();
     document.documentElement.setAttribute('data-standup-snap', '');
     try {
       btn.click();
@@ -354,15 +346,14 @@
     host.style.display = inCall ? '' : 'none';
     if (!inCall) return;
 
-    // read the list (hidden or not); open the panel only when Meet hasn't rendered it yet,
-    // or when the number of people no longer matches and the count changed since our last try
+    // read the list (hidden or not). Meet keeps the list in the page and up to date once People was opened,
+    // so the panel is opened at most once per call: only when the list isn't in the page yet.
+    // (The count on the People button can differ from the rows: "Merged audio" groups, presentations.)
     if (!snapping) {
       const list = readList();
-      const count = peopleCount();
       if (list.names.length) takeList(list);
-      const missing = !list.names.length || (count != null && count !== list.rows && count !== snapCount);
-      const wait = snap || snapFails ? RESNAP_MS : 1500;
-      if (missing && snapFails < 3 && !sidePanelOpen() && Date.now() - lastSnapAt > wait) snapshot().then(() => tick());
+      const missing = !list.names.length && !snap;
+      if (missing && snapFails < 3 && !sidePanelOpen() && Date.now() - lastSnapAt > (snapFails ? RESNAP_MS : 1500)) snapshot().then(() => tick());
     }
 
     const present = snap ? snap.names : null;
