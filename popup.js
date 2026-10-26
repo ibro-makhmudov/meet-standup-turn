@@ -15,7 +15,7 @@ const svg = (d, cls = '') => `<svg class="${cls}" width="20" height="20" viewBox
 const DEMO = !(globalThis.chrome && chrome.runtime && chrome.runtime.id);
 const demo = new URLSearchParams(location.search).get('demo') || 'uptodate';
 const send = (msg) => DEMO
-  ? Promise.resolve({ current: '1.2.2', latest: demo === 'available' ? '1.3.0' : '1.2.2', disk: demo === 'downloaded' ? '1.3.0' : '1.2.2', checkedAt: Date.now() - 42 * 60000 })
+  ? Promise.resolve(demo === 'store' ? { current: '1.6.0', store: true } : { current: '1.2.2', latest: demo === 'available' ? '1.3.0' : '1.2.2', disk: demo === 'downloaded' ? '1.3.0' : '1.2.2', checkedAt: Date.now() - 42 * 60000 })
   : new Promise((res) => chrome.runtime.sendMessage(msg, (v) => res(chrome.runtime.lastError ? null : v)));
 const store = {
   get: (keys) => (DEMO ? Promise.resolve(demoData()) : chrome.storage.local.get(keys)),
@@ -36,7 +36,10 @@ function renderUpdate(st, checking) {
   const box = $('update');
   if (!st) { box.innerHTML = '<div class="empty">Can’t read the version.</div>'; return; }
   const newer = (v) => R.newerVersion(v, st.current);
-  if (newer(st.disk)) {
+  if (st.store) {
+    box.innerHTML = `<div class="status"><span class="ok">${svg(ICON.ok)}</span>
+        <div class="grow"><div class="main">Updates automatically</div><div class="sub">Installed from the Chrome Web Store</div></div></div>`;
+  } else if (newer(st.disk)) {
     box.innerHTML = `<div class="status"><span class="up">${svg(ICON.up)}</span>
         <div class="grow"><div class="main">${esc(st.disk)} is downloaded</div><div class="sub">Reload to start using it</div></div>
         <button class="btn filled" id="reload">Reload extension</button></div>

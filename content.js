@@ -323,8 +323,11 @@
 
   // Updates for the unpacked install: "Update available" from GitHub, then, once the new files are
   // in the folder (git pull / new ZIP), a button that reloads the extension (no chrome://extensions needed).
+  // A Chrome Web Store install (update_url in the manifest) is updated by Chrome: nothing to do here.
   const ask = (msg) => new Promise((res) => chrome.runtime.sendMessage(msg, (v) => res(chrome.runtime.lastError ? null : v)));
-  try {
+  let fromStore = false;
+  try { fromStore = 'update_url' in chrome.runtime.getManifest(); } catch {}
+  if (!fromStore) try {
     const current = chrome.runtime.getManifest().version;
     ask('latestVersion').then((latest) => {
       if (R.newerVersion(latest, current)) { ui.update = latest; ui.lastSig = ''; tick(); }

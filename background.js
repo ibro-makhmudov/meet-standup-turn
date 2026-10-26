@@ -5,7 +5,10 @@
 // - status: all of the above at once, for the popup
 // - reloadExtension: makes Chrome load the new files, instead of pressing ↻ in chrome://extensions
 // The toolbar icon gets a "↑" badge while an update is waiting.
+// Installed from the Chrome Web Store (Chrome adds update_url to the manifest), Chrome updates the
+// extension itself: then none of this runs and no request goes to GitHub.
 importScripts('rotation.js');
+const FROM_STORE = 'update_url' in chrome.runtime.getManifest();
 
 const REPO_MANIFEST = 'https://raw.githubusercontent.com/ibro-makhmudov/meet-standup-turn/main/manifest.json';
 const EVERY_MS = 6 * 60 * 60 * 1000;
@@ -34,6 +37,7 @@ async function diskVersion() {
 }
 
 async function status(force = false) {
+  if (FROM_STORE) return { current, store: true };
   const [latest, disk] = await Promise.all([latestVersion(force), diskVersion()]);
   const { updateCheck } = await chrome.storage.local.get('updateCheck');
   const waiting = StandupRotation.newerVersion(disk, current) || StandupRotation.newerVersion(latest, current);
@@ -44,6 +48,7 @@ async function status(force = false) {
 
 chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
   if (msg === 'reloadExtension') { chrome.runtime.reload(); return false; }
+  if (FROM_STORE && (msg === 'latestVersion' || msg === 'diskVersion')) { reply(null); return false; }
   const job = msg === 'latestVersion' ? latestVersion()
     : msg === 'diskVersion' ? diskVersion()
     : msg === 'status' ? status()
@@ -55,7 +60,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
 });
 
 // keep the badge fresh without a Meet tab open
-chrome.alarms.create('update-check', { periodInMinutes: 60 });
+if (!FROM_STORE) chrome.alarms.create('update-check', { periodInMinutes: 60 });
 chrome.alarms.onAlarm.addListener((a) => { if (a.name === 'update-check') status(); });
 chrome.runtime.onStartup.addListener(() => status());
 chrome.runtime.onInstalled.addListener(() => status());

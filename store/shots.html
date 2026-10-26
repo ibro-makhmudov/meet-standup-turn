@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Store screenshots</title>
+  <!-- 1280x800 Chrome Web Store screenshots made from the README images: ?n=2 or ?n=3 -->
+  <style>
+    * { box-sizing: border-box; margin: 0; }
+    body { width: 1280px; height: 800px; overflow: hidden; background: #202124; color: #e3e3e3;
+           font-family: "Google Sans", Roboto, Arial, sans-serif; display: flex; align-items: center; gap: 64px; padding: 0 80px; }
+    .text { flex: 1; }
+    h1 { font-size: 44px; line-height: 54px; font-weight: 500; margin-bottom: 24px; }
+    p { font-size: 22px; line-height: 34px; color: #c4c7c5; margin-bottom: 14px; }
+    p b { color: #a8c7fa; font-weight: 500; }
+    .imgs { display: flex; gap: 28px; align-items: flex-start; }
+    .imgs img { display: block; }
+  </style>
+</head>
+<body>
+  <script>
+    const n = new URLSearchParams(location.search).get('n');
+    const slides = {
+      2: { h: 'Who starts today rotates by itself', p: ['Pick the first speaker <b>once</b>. Every next standup day the next person alphabetically starts.', 'People who are not in the call are skipped; weekends don’t count.', 'The meeting lead can <b>speak last</b>, guests can be left out.'],
+           imgs: [['../docs/menu.png', 300], ['../docs/exceptions.png', 300]] },
+      3: { h: 'Your standups at a glance', p: ['Click the icon to see who starts <b>today</b> and on the <b>next</b> standup day.', 'Several Meet links for one standup are recognised by who is in the call.', 'No account, no server: everything stays in your browser.'],
+           imgs: [['../docs/popup-store.png', 360]] },
+    }[n];
+    document.body.innerHTML = `<div class="text"><h1>${slides.h}</h1>${slides.p.map((x) => `<p>${x}</p>`).join('')}</div>
+      <div class="imgs">${slides.imgs.map(([src, w]) => `<img src="${src}" width="${w}">`).join('')}</div>`;
+  </script>
+</body>
+</html>
