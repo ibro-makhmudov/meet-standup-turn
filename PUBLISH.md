@@ -34,6 +34,9 @@ README text for **Install**:
 Developers can also load it from source, see below.
 ```
 
+Short link: https://ibro-makhmudov.github.io/meet-standup-turn (GitHub Pages from `docs/`,
+`docs/index.html` forwards to the store; the store itself has no custom URLs).
+
 ## 4. Updates
 
 1. Change the code, bump `version` in `manifest.json`.

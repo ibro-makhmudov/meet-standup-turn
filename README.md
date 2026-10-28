@@ -41,6 +41,7 @@ No account, no setup, no team list. Names come from the call and never leave you
 **From the Chrome Web Store (recommended, updates itself):**
 [Meet Standup Turn](https://chromewebstore.google.com/detail/meet-standup-turn/oacbihellcgjjgcmcbhgjdmjncpooehe) → **Add to Chrome**.
 Then join a Meet call; the card appears top left.
+Short link to share: **https://ibro-makhmudov.github.io/meet-standup-turn**
 
 Already installed from the folder? Remove that copy in `chrome://extensions` first, then install from the store.
 The store copy starts with empty data: pick today's starter and set the exceptions once more.
