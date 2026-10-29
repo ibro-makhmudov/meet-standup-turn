@@ -21,7 +21,7 @@
     else localStorage.setItem(key, JSON.stringify(value));
   }
 
-  const code = () => (location.pathname.match(/^\/([a-z]{3,4}-[a-z]{4}-[a-z]{3,4})\b/) || [])[1]
+  const code = () => (location.pathname.match(/^\/(?:meet\/)?([a-z]{3,4}-[a-z]{4}-[a-z]{3,4})\b/) || [])[1]
     || (globalThis.STANDUP_DEMO ? globalThis.STANDUP_DEMO_CODE || 'demo' : null);
   const today = () => (globalThis.STANDUP_TODAY || R.ymd(new Date()));
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
